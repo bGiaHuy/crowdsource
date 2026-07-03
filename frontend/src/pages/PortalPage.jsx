@@ -11,6 +11,11 @@ const PortalPage = () => {
   const [expandedItemTitle, setExpandedItemTitle] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
 
+  const [showStickySearch, setShowStickySearch] = useState(false);
+  const rootRef = React.useRef(null);
+  const contentRef = React.useRef(null);
+  const lastScrollY = React.useRef(0);
+
   const availableWebsites = useMemo(() => {
     return Array.from(new Set(websiteGuidesData.map(g => g.website))).filter(Boolean);
   }, []);
@@ -42,6 +47,34 @@ const PortalPage = () => {
       return titleMatch || contentMatch;
     });
   }, [searchQuery]);
+
+  useEffect(() => {
+    const handleScroll = (e) => {
+      const currentScrollY = e.target.scrollTop;
+      
+      if (currentScrollY > 180) {
+        if (currentScrollY < lastScrollY.current - 5) {
+          setShowStickySearch(true);
+        } else if (currentScrollY > lastScrollY.current + 5) {
+          setShowStickySearch(false);
+        }
+      } else {
+        setShowStickySearch(false);
+      }
+      lastScrollY.current = currentScrollY;
+    };
+
+    const rootEl = rootRef.current;
+    const contentEl = contentRef.current;
+
+    if (rootEl) rootEl.addEventListener('scroll', handleScroll, { passive: true });
+    if (contentEl) contentEl.addEventListener('scroll', handleScroll, { passive: true });
+
+    return () => {
+      if (rootEl) rootEl.removeEventListener('scroll', handleScroll);
+      if (contentEl) contentEl.removeEventListener('scroll', handleScroll);
+    };
+  }, []);
 
   const currentItems = useMemo(() => {
     if (searchResults) return searchResults;
@@ -160,7 +193,32 @@ const PortalPage = () => {
   };
 
   return (
-    <div className="portal-page-root">
+    <div className="portal-page-root" ref={rootRef}>
+
+      {/* Sticky Search Bar */}
+      <div className={`sticky-search-container ${showStickySearch ? 'visible' : ''}`}>
+        <div style={{ maxWidth: '600px', width: '100%', margin: '0 auto', position: 'relative' }}>
+          <div style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', color: 'var(--color-muted-foreground)' }}>
+            <Search size={18} />
+          </div>
+          <input 
+            type="text" 
+            placeholder="Tìm kiếm hướng dẫn (vd: điểm danh, chuyển lớp)..." 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="input-field"
+            style={{ 
+              paddingLeft: '44px', 
+              borderRadius: 'var(--radius-pill)', 
+              boxShadow: 'var(--shadow-sm)',
+              fontSize: '15px',
+              paddingTop: '12px',
+              paddingBottom: '12px',
+              backgroundColor: 'var(--color-background)'
+            }} 
+          />
+        </div>
+      </div>
 
       {/* Hero Section - Always visible at top */}
       <div style={{ flexShrink: 0, background: 'linear-gradient(135deg, var(--color-primary-soft) 0%, var(--color-background) 100%)', padding: 'var(--space-8) var(--space-4)', textAlign: 'center', borderBottom: '1px solid var(--color-border)' }}>
@@ -248,40 +306,38 @@ const PortalPage = () => {
 
             {/* Layout Desktop vs Mobile */}
             <div className="portal-layout">
-              {/* Step 2: Select Function Group (Sidebar) */}
-              {groupsForWebsite.length > 0 && (
-                <div className="portal-sidebar">
-                  <h3 className="text-sm text-muted" style={{ marginBottom: 'var(--space-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Danh mục</h3>
-                  <div className="portal-sidebar-scroll">
-                    {groupsForWebsite.map(group => {
-                      const isActive = activeGroup === group;
-                      return (
-                        <button
-                          key={group}
-                          onClick={() => setActiveGroup(group)}
-                          style={{
-                            padding: 'var(--space-3) var(--space-4)',
-                            backgroundColor: isActive ? 'var(--color-primary-soft)' : 'transparent',
-                            borderLeft: isActive ? '3px solid var(--color-primary)' : '3px solid transparent',
-                            color: isActive ? 'var(--color-primary-hover)' : 'var(--color-foreground)',
-                            fontSize: 'var(--text-sm)',
-                            fontWeight: isActive ? 600 : 500,
-                            cursor: 'pointer',
-                            transition: 'all 0.2s',
-                            textAlign: 'left',
-                            borderRadius: '0 var(--radius-md) var(--radius-md) 0'
-                          }}
-                        >
-                          {group}
-                        </button>
-                      );
-                    })}
-                  </div>
+              {/* Sidebar: Group selection */}
+              <div className="portal-sidebar">
+                <h3 className="text-sm text-muted" style={{ marginBottom: 'var(--space-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Danh mục</h3>
+                <div className="portal-sidebar-scroll">
+                  {groupsForWebsite.map(group => {
+                    const isActive = activeGroup === group;
+                    return (
+                      <button
+                        key={group}
+                        onClick={() => setActiveGroup(group)}
+                        style={{
+                          padding: 'var(--space-3) var(--space-4)',
+                          backgroundColor: isActive ? 'var(--color-primary-soft)' : 'transparent',
+                          borderLeft: isActive ? '3px solid var(--color-primary)' : '3px solid transparent',
+                          color: isActive ? 'var(--color-primary-hover)' : 'var(--color-foreground)',
+                          fontSize: 'var(--text-sm)',
+                          fontWeight: isActive ? 600 : 500,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          textAlign: 'left',
+                          borderRadius: '0 var(--radius-md) var(--radius-md) 0'
+                        }}
+                      >
+                        {group}
+                      </button>
+                    );
+                  })}
                 </div>
-              )}
+              </div>
 
               {/* Step 3: Guide Items */}
-              <div className="portal-content">
+              <div className="portal-content" ref={contentRef}>
                 {currentItems.length > 0 ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-3)' }}>
                     {currentItems.map(renderGuideItem)}
@@ -297,7 +353,7 @@ const PortalPage = () => {
           </>
         ) : (
           /* Search Results View */
-          <div className="portal-content" style={{ paddingRight: '8px' }}>
+          <div className="portal-content" ref={contentRef} style={{ paddingRight: '8px' }}>
             <div style={{ marginBottom: 'var(--space-4)', color: 'var(--color-muted-foreground)', fontWeight: 500 }}>
               Tìm thấy {searchResults.length} kết quả cho "{searchQuery}"
             </div>
@@ -318,13 +374,33 @@ const PortalPage = () => {
       </div>
 
       <style dangerouslySetInnerHTML={{__html: `
-        /* Root container locks height on Desktop */
         .portal-page-root {
-          height: 100%;
-          background-color: var(--color-background);
           display: flex;
           flex-direction: column;
-          overflow-y: hidden;
+          height: 100%;
+          overflow: hidden;
+          position: relative;
+        }
+
+        .sticky-search-container {
+          position: absolute;
+          top: 0;
+          left: 0;
+          right: 0;
+          padding: var(--space-3) var(--space-4);
+          background-color: var(--color-surface);
+          border-bottom: 1px solid var(--color-border);
+          box-shadow: var(--shadow-md);
+          z-index: 40;
+          transform: translateY(-100%);
+          transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+          opacity: 0;
+          pointer-events: none;
+        }
+        .sticky-search-container.visible {
+          transform: translateY(0);
+          opacity: 1;
+          pointer-events: auto;
         }
         
         .portal-container {
@@ -427,6 +503,11 @@ const PortalPage = () => {
             height: auto;
             overflow: visible;
             padding-right: 0;
+          }
+
+          .sticky-search-container {
+            position: fixed;
+            top: 52px; /* --header-height-mobile */
           }
         }
       `}} />
