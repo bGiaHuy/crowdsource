@@ -61,13 +61,14 @@ for floor in draft["floors"]:
             "is_clickable": False
         })
         
-    # Central Void Area
-    items.append({
-        "item_id": f"PERIMETER-CENTER-VOID-F{fnum}",
-        "item_type": "block",
-        "bbox": {"min_x": 670, "min_y": 475, "max_x": 1910, "max_y": 1380},
-        "is_clickable": False
-    })
+    # Central Void Area only for Floor 1 since upper floors have skylights and inner corridors
+    if fnum == 1:
+        items.append({
+            "item_id": f"PERIMETER-CENTER-VOID-F{fnum}",
+            "item_type": "block",
+            "bbox": {"min_x": 670, "min_y": 475, "max_x": 1910, "max_y": 1380},
+            "is_clickable": False
+        })
 
     floor["items"] = items
 

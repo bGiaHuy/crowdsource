@@ -993,17 +993,6 @@
             "max_y": 275
           },
           "is_clickable": false
-        },
-        {
-          "item_id": "PERIMETER-CENTER-VOID-F2",
-          "item_type": "block",
-          "bbox": {
-            "min_x": 670,
-            "min_y": 475,
-            "max_x": 1910,
-            "max_y": 1380
-          },
-          "is_clickable": false
         }
       ],
       "image_min_x": 0,
@@ -1727,17 +1716,6 @@
             "min_y": 0,
             "max_x": 2600,
             "max_y": 275
-          },
-          "is_clickable": false
-        },
-        {
-          "item_id": "PERIMETER-CENTER-VOID-F3",
-          "item_type": "block",
-          "bbox": {
-            "min_x": 670,
-            "min_y": 475,
-            "max_x": 1910,
-            "max_y": 1380
           },
           "is_clickable": false
         }
@@ -2476,17 +2454,6 @@
             "min_y": 0,
             "max_x": 2600,
             "max_y": 275
-          },
-          "is_clickable": false
-        },
-        {
-          "item_id": "PERIMETER-CENTER-VOID-F4",
-          "item_type": "block",
-          "bbox": {
-            "min_x": 670,
-            "min_y": 475,
-            "max_x": 1910,
-            "max_y": 1380
           },
           "is_clickable": false
         }
