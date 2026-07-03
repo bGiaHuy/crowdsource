@@ -354,9 +354,9 @@
           "item_type": "wall",
           "bbox": {
             "min_x": 0,
-            "min_y": 155,
+            "min_y": 0,
             "max_x": 120,
-            "max_y": 1790
+            "max_y": 1750
           },
           "is_clickable": false
         },
@@ -365,9 +365,9 @@
           "item_type": "wall",
           "bbox": {
             "min_x": 2460,
-            "min_y": 155,
-            "max_x": 2580,
-            "max_y": 1790
+            "min_y": 0,
+            "max_x": 2600,
+            "max_y": 1750
           },
           "is_clickable": false
         },
@@ -375,10 +375,10 @@
           "item_id": "PERIMETER-BOTTOM-F1",
           "item_type": "wall",
           "bbox": {
-            "min_x": 120,
+            "min_x": 0,
             "min_y": 1670,
-            "max_x": 2460,
-            "max_y": 1790
+            "max_x": 2600,
+            "max_y": 1750
           },
           "is_clickable": false
         },
@@ -387,9 +387,9 @@
           "item_type": "wall",
           "bbox": {
             "min_x": 0,
-            "min_y": 155,
-            "max_x": 120,
-            "max_y": 1790
+            "min_y": 0,
+            "max_x": 895,
+            "max_y": 135
           },
           "is_clickable": false
         },
@@ -397,10 +397,21 @@
           "item_id": "PERIMETER-TOP-RIGHT-F1",
           "item_type": "wall",
           "bbox": {
-            "min_x": 2460,
-            "min_y": 155,
-            "max_x": 2580,
-            "max_y": 1790
+            "min_x": 1715,
+            "min_y": 0,
+            "max_x": 2600,
+            "max_y": 135
+          },
+          "is_clickable": false
+        },
+        {
+          "item_id": "PERIMETER-CENTER-VOID-F1",
+          "item_type": "block",
+          "bbox": {
+            "min_x": 670,
+            "min_y": 475,
+            "max_x": 1910,
+            "max_y": 1380
           },
           "is_clickable": false
         }
@@ -926,50 +937,6 @@
           "name": "Giếng trời"
         },
         {
-          "item_id": "PERIMETER-LEFT-F2",
-          "item_type": "wall",
-          "bbox": {
-            "min_x": 0,
-            "min_y": 155,
-            "max_x": 120,
-            "max_y": 1790
-          },
-          "is_clickable": false
-        },
-        {
-          "item_id": "PERIMETER-RIGHT-F2",
-          "item_type": "wall",
-          "bbox": {
-            "min_x": 2460,
-            "min_y": 155,
-            "max_x": 2580,
-            "max_y": 1790
-          },
-          "is_clickable": false
-        },
-        {
-          "item_id": "PERIMETER-BOTTOM-F2",
-          "item_type": "wall",
-          "bbox": {
-            "min_x": 120,
-            "min_y": 1670,
-            "max_x": 2460,
-            "max_y": 1790
-          },
-          "is_clickable": false
-        },
-        {
-          "item_id": "PERIMETER-TOP-F2",
-          "item_type": "wall",
-          "bbox": {
-            "min_x": 120,
-            "min_y": 155,
-            "max_x": 2460,
-            "max_y": 275
-          },
-          "is_clickable": false
-        },
-        {
           "item_id": "BLOCK-C-MIDDLE-2",
           "room_code": "",
           "name": "Khoảng trống",
@@ -982,6 +949,61 @@
             "max_x": 1464,
             "max_y": 1105
           }
+        },
+        {
+          "item_id": "PERIMETER-LEFT-F2",
+          "item_type": "wall",
+          "bbox": {
+            "min_x": 0,
+            "min_y": 0,
+            "max_x": 120,
+            "max_y": 1750
+          },
+          "is_clickable": false
+        },
+        {
+          "item_id": "PERIMETER-RIGHT-F2",
+          "item_type": "wall",
+          "bbox": {
+            "min_x": 2460,
+            "min_y": 0,
+            "max_x": 2600,
+            "max_y": 1750
+          },
+          "is_clickable": false
+        },
+        {
+          "item_id": "PERIMETER-BOTTOM-F2",
+          "item_type": "wall",
+          "bbox": {
+            "min_x": 0,
+            "min_y": 1670,
+            "max_x": 2600,
+            "max_y": 1750
+          },
+          "is_clickable": false
+        },
+        {
+          "item_id": "PERIMETER-TOP-F2",
+          "item_type": "wall",
+          "bbox": {
+            "min_x": 0,
+            "min_y": 0,
+            "max_x": 2600,
+            "max_y": 275
+          },
+          "is_clickable": false
+        },
+        {
+          "item_id": "PERIMETER-CENTER-VOID-F2",
+          "item_type": "block",
+          "bbox": {
+            "min_x": 670,
+            "min_y": 475,
+            "max_x": 1910,
+            "max_y": 1380
+          },
+          "is_clickable": false
         }
       ],
       "image_min_x": 0,
@@ -1651,50 +1673,6 @@
           }
         },
         {
-          "item_id": "PERIMETER-LEFT-F3",
-          "item_type": "wall",
-          "bbox": {
-            "min_x": 0,
-            "min_y": 155,
-            "max_x": 120,
-            "max_y": 1855
-          },
-          "is_clickable": false
-        },
-        {
-          "item_id": "PERIMETER-RIGHT-F3",
-          "item_type": "wall",
-          "bbox": {
-            "min_x": 2460,
-            "min_y": 155,
-            "max_x": 2580,
-            "max_y": 1855
-          },
-          "is_clickable": false
-        },
-        {
-          "item_id": "PERIMETER-BOTTOM-F3",
-          "item_type": "wall",
-          "bbox": {
-            "min_x": 120,
-            "min_y": 1735,
-            "max_x": 2460,
-            "max_y": 1855
-          },
-          "is_clickable": false
-        },
-        {
-          "item_id": "PERIMETER-TOP-F3",
-          "item_type": "wall",
-          "bbox": {
-            "min_x": 120,
-            "min_y": 155,
-            "max_x": 2460,
-            "max_y": 275
-          },
-          "is_clickable": false
-        },
-        {
           "item_id": "BLOCK-C-MIDDLE-3",
           "room_code": "",
           "name": "Khoảng trống",
@@ -1707,6 +1685,61 @@
             "max_x": 1464,
             "max_y": 1105
           }
+        },
+        {
+          "item_id": "PERIMETER-LEFT-F3",
+          "item_type": "wall",
+          "bbox": {
+            "min_x": 0,
+            "min_y": 0,
+            "max_x": 120,
+            "max_y": 1750
+          },
+          "is_clickable": false
+        },
+        {
+          "item_id": "PERIMETER-RIGHT-F3",
+          "item_type": "wall",
+          "bbox": {
+            "min_x": 2460,
+            "min_y": 0,
+            "max_x": 2600,
+            "max_y": 1750
+          },
+          "is_clickable": false
+        },
+        {
+          "item_id": "PERIMETER-BOTTOM-F3",
+          "item_type": "wall",
+          "bbox": {
+            "min_x": 0,
+            "min_y": 1670,
+            "max_x": 2600,
+            "max_y": 1750
+          },
+          "is_clickable": false
+        },
+        {
+          "item_id": "PERIMETER-TOP-F3",
+          "item_type": "wall",
+          "bbox": {
+            "min_x": 0,
+            "min_y": 0,
+            "max_x": 2600,
+            "max_y": 275
+          },
+          "is_clickable": false
+        },
+        {
+          "item_id": "PERIMETER-CENTER-VOID-F3",
+          "item_type": "block",
+          "bbox": {
+            "min_x": 670,
+            "min_y": 475,
+            "max_x": 1910,
+            "max_y": 1380
+          },
+          "is_clickable": false
         }
       ],
       "image_min_x": 0,
@@ -2389,50 +2422,6 @@
           }
         },
         {
-          "item_id": "PERIMETER-LEFT-F4",
-          "item_type": "wall",
-          "bbox": {
-            "min_x": 0,
-            "min_y": 155,
-            "max_x": 120,
-            "max_y": 1855
-          },
-          "is_clickable": false
-        },
-        {
-          "item_id": "PERIMETER-RIGHT-F4",
-          "item_type": "wall",
-          "bbox": {
-            "min_x": 2460,
-            "min_y": 155,
-            "max_x": 2580,
-            "max_y": 1855
-          },
-          "is_clickable": false
-        },
-        {
-          "item_id": "PERIMETER-BOTTOM-F4",
-          "item_type": "wall",
-          "bbox": {
-            "min_x": 120,
-            "min_y": 1735,
-            "max_x": 2460,
-            "max_y": 1855
-          },
-          "is_clickable": false
-        },
-        {
-          "item_id": "PERIMETER-TOP-F4",
-          "item_type": "wall",
-          "bbox": {
-            "min_x": 120,
-            "min_y": 155,
-            "max_x": 2460,
-            "max_y": 275
-          },
-          "is_clickable": false
-        },
-        {
           "item_id": "BLOCK-C-MIDDLE-4",
           "room_code": "",
           "name": "Khoảng trống",
@@ -2445,6 +2434,61 @@
             "max_x": 1464,
             "max_y": 1105
           }
+        },
+        {
+          "item_id": "PERIMETER-LEFT-F4",
+          "item_type": "wall",
+          "bbox": {
+            "min_x": 0,
+            "min_y": 0,
+            "max_x": 120,
+            "max_y": 1750
+          },
+          "is_clickable": false
+        },
+        {
+          "item_id": "PERIMETER-RIGHT-F4",
+          "item_type": "wall",
+          "bbox": {
+            "min_x": 2460,
+            "min_y": 0,
+            "max_x": 2600,
+            "max_y": 1750
+          },
+          "is_clickable": false
+        },
+        {
+          "item_id": "PERIMETER-BOTTOM-F4",
+          "item_type": "wall",
+          "bbox": {
+            "min_x": 0,
+            "min_y": 1670,
+            "max_x": 2600,
+            "max_y": 1750
+          },
+          "is_clickable": false
+        },
+        {
+          "item_id": "PERIMETER-TOP-F4",
+          "item_type": "wall",
+          "bbox": {
+            "min_x": 0,
+            "min_y": 0,
+            "max_x": 2600,
+            "max_y": 275
+          },
+          "is_clickable": false
+        },
+        {
+          "item_id": "PERIMETER-CENTER-VOID-F4",
+          "item_type": "block",
+          "bbox": {
+            "min_x": 670,
+            "min_y": 475,
+            "max_x": 1910,
+            "max_y": 1380
+          },
+          "is_clickable": false
         }
       ],
       "image_min_x": 0,

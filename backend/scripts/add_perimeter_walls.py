@@ -60,6 +60,14 @@ for floor in draft["floors"]:
             "bbox": {"min_x": 0, "min_y": 0, "max_x": 2600, "max_y": 275},
             "is_clickable": False
         })
+        
+    # Central Void Area
+    items.append({
+        "item_id": f"PERIMETER-CENTER-VOID-F{fnum}",
+        "item_type": "block",
+        "bbox": {"min_x": 670, "min_y": 475, "max_x": 1910, "max_y": 1380},
+        "is_clickable": False
+    })
 
     floor["items"] = items
 

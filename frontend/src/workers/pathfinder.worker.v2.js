@@ -92,8 +92,7 @@ function loadGrid(gridData) {
         if (apData.points && apData.points.length > 0) {
           accessPointsMap.set(itemId, {
             item_type: apData.type,
-            x: apData.points[0].x,
-            y: apData.points[0].y,
+            points: apData.points, // Store all access points
             visual_x: apData.center_x,
             visual_y: apData.center_y
           });
@@ -188,43 +187,61 @@ function heuristic(x0, y0, x1, y1) {
 // THETA* ALGORITHM
 function thetaStar(startGridX, startGridY, endGridX, endGridY, floorData, startItemId, endItemId) {
   const { grid, width, height } = floorData;
-  let startPt = null;
+  let startPts = [];
   if (startItemId && floorData.access_points.has(startItemId)) {
     const ap = floorData.access_points.get(startItemId);
-    startPt = { x: ap.x, y: ap.y };
+    startPts = ap.points;
   } else {
-    startPt = getNearestWalkable(startGridX, startGridY, floorData);
+    startPts = [getNearestWalkable(startGridX, startGridY, floorData)];
   }
 
-  let endPt = null;
+  let endPts = [];
+  let endPtsSet = new Set();
   if (endItemId && floorData.access_points.has(endItemId)) {
     const ap = floorData.access_points.get(endItemId);
-    endPt = { x: ap.x, y: ap.y };
+    endPts = ap.points;
   } else {
-    endPt = getNearestWalkable(endGridX, endGridY, floorData);
+    endPts = [getNearestWalkable(endGridX, endGridY, floorData)];
   }
   
-  if (!startPt || !endPt) return null;
-  
-  const sx = startPt.x; const sy = startPt.y;
-  const ex = endPt.x; const ey = endPt.y;
+  if (!startPts || startPts.length === 0 || !startPts[0] || !endPts || endPts.length === 0 || !endPts[0]) return null;
 
-  if (sx === ex && sy === ey) return [{x: sx, y: sy}];
+  for (const pt of endPts) {
+    endPtsSet.add(`${pt.x},${pt.y}`);
+  }
+
+  // Check if any start point is already an end point
+  for (const pt of startPts) {
+    if (endPtsSet.has(`${pt.x},${pt.y}`)) {
+      return [{x: pt.x, y: pt.y}];
+    }
+  }
 
   const openSet = new MinHeap((a, b) => a.f - b.f);
   const closedSet = new Set();
+  const gCosts = new Map();
   
-  const startNode = {
-    x: sx, y: sy,
-    g: 0,
-    f: heuristic(sx, sy, ex, ey),
-    parent: null
+  const getHeuristic = (x, y) => {
+    let minH = Infinity;
+    for (let i = 0; i < endPts.length; i++) {
+      let d = heuristic(x, y, endPts[i].x, endPts[i].y);
+      if (d < minH) minH = d;
+    }
+    return minH;
   };
-  openSet.push(startNode);
+
+  for (const pt of startPts) {
+    const startNode = {
+      x: pt.x, y: pt.y,
+      g: 0,
+      f: getHeuristic(pt.x, pt.y),
+      parent: null
+    };
+    openSet.push(startNode);
+    gCosts.set(`${pt.x},${pt.y}`, 0);
+  }
   
   let endNode = null;
-  const gCosts = new Map();
-  gCosts.set(`${sx},${sy}`, 0);
   
   // 8-way movement
   const DIRS = [
@@ -241,7 +258,7 @@ function thetaStar(startGridX, startGridY, endGridX, endGridY, floorData, startI
   while (openSet.heap.length > 0) {
     const current = openSet.pop();
     
-    if (current.x === ex && current.y === ey) {
+    if (endPtsSet.has(`${current.x},${current.y}`)) {
       endNode = current;
       break;
     }
@@ -283,7 +300,7 @@ function thetaStar(startGridX, startGridY, endGridX, endGridY, floorData, startI
         const existingG = gCosts.get(nextStateKey);
         if (existingG === undefined || newG < existingG) {
           gCosts.set(nextStateKey, newG);
-          const h = heuristic(nx, ny, ex, ey);
+          const h = getHeuristic(nx, ny);
           openSet.push({
             x: nx, y: ny,
             g: newG,
@@ -385,8 +402,8 @@ function findHierarchicalPath(startPt, endPt, preferElevator = false, startItemI
     
     for (const [stairId, stair] of startFloor.access_points.entries()) {
       if (stair.item_type !== 'stair' && stair.item_type !== 'elevator') continue;
-      const stx = stair.x;
-      const sty = stair.y;
+      const stx = stair.points[0].x;
+      const sty = stair.points[0].y;
       
       const p1 = thetaStar(sx, sy, stx, sty, startFloor, startItemId, stairId);
       if (!p1) continue;
@@ -400,7 +417,7 @@ function findHierarchicalPath(startPt, endPt, preferElevator = false, startItemI
       let minDist = Infinity;
       for (const [eStairId, eStair] of endFloor.access_points.entries()) {
         if (eStair.item_type !== stair.item_type) continue;
-        const dist = heuristic(stair.x, stair.y, eStair.x, eStair.y);
+        const dist = heuristic(stair.points[0].x, stair.points[0].y, eStair.points[0].x, eStair.points[0].y);
         if (dist < minDist && dist < 1600) {
           minDist = dist;
           endStair = eStair;
@@ -408,8 +425,8 @@ function findHierarchicalPath(startPt, endPt, preferElevator = false, startItemI
       }
       if (!endStair) continue;
       
-      const estx = endStair.x;
-      const esty = endStair.y;
+      const estx = endStair.points[0].x;
+      const esty = endStair.points[0].y;
       const cost2 = heuristic(estx, esty, ex, ey);
       
       const stairPenalty = (preferElevator && stair.item_type === 'stair') ? 100000 : 0;
@@ -426,29 +443,31 @@ function findHierarchicalPath(startPt, endPt, preferElevator = false, startItemI
     
     // Phase 3
     let bestEndStair = null;
+    let bestEndStairId = null;
     let bestMinDist = Infinity;
     const startStair = startFloor.access_points.get(bestStairId);
     
     for (const [eStairId, eStair] of endFloor.access_points.entries()) {
       if (eStair.item_type !== startStair.item_type) continue;
-      const dist = heuristic(startStair.x, startStair.y, eStair.x, eStair.y);
+      const dist = heuristic(startStair.points[0].x, startStair.points[0].y, eStair.points[0].x, eStair.points[0].y);
       if (dist < bestMinDist && dist < 1600) { // match Phase 1 threshold
         bestMinDist = dist;
         bestEndStair = eStair;
+        bestEndStairId = eStairId;
       }
     }
     if (!bestEndStair) return null;
     
-    const estx = bestEndStair.x;
-    const esty = bestEndStair.y;
+    const estx = bestEndStair.points[0].x;
+    const esty = bestEndStair.points[0].y;
     
-    const bestPhase3Path = thetaStar(estx, esty, ex, ey, endFloor, bestEndStair.itemId || null, endItemId);
+    const bestPhase3Path = thetaStar(estx, esty, ex, ey, endFloor, bestEndStairId, endItemId);
     if (!bestPhase3Path) return null;
     
     const finalNodes = [];
     finalNodes.push({ x: startPt.x, y: startPt.y, floor: startPt.floor, type: 'click' });
     bestPhase1Path.forEach(p => finalNodes.push({ x: (p.x * cs) + (cs/2), y: (p.y * cs) + (cs/2), floor: startPt.floor }));
-    finalNodes.push({ x: startStair.visual_x || (startStair.x*cs + cs/2), y: startStair.visual_y || (startStair.y*cs + cs/2), floor: startPt.floor, type: 'stair' });
+    finalNodes.push({ x: startStair.visual_x || (startStair.points[0].x*cs + cs/2), y: startStair.visual_y || (startStair.points[0].y*cs + cs/2), floor: startPt.floor, type: 'stair' });
     
     const step = startPt.floor < endPt.floor ? 1 : -1;
     let currFloor = startPt.floor + step;
@@ -459,20 +478,20 @@ function findHierarchicalPath(startPt, endPt, preferElevator = false, startItemI
         if (currFloorData) {
             for (const [id, ap] of currFloorData.access_points.entries()) {
                 if (ap.item_type !== startStair.item_type) continue;
-                const dist = heuristic(startStair.x, startStair.y, ap.x, ap.y);
+                const dist = heuristic(startStair.points[0].x, startStair.points[0].y, ap.points[0].x, ap.points[0].y);
                 if (dist < minDist && dist < 1600) { // match Phase 1 threshold
                     minDist = dist;
                     intermStair = ap;
                 }
             }
         }
-        const cx = intermStair ? (intermStair.visual_x || (intermStair.x * cs + cs/2)) : finalNodes[finalNodes.length-1].x;
-        const cy = intermStair ? (intermStair.visual_y || (intermStair.y * cs + cs/2)) : finalNodes[finalNodes.length-1].y;
+        const cx = intermStair ? (intermStair.visual_x || (intermStair.points[0].x * cs + cs/2)) : finalNodes[finalNodes.length-1].x;
+        const cy = intermStair ? (intermStair.visual_y || (intermStair.points[0].y * cs + cs/2)) : finalNodes[finalNodes.length-1].y;
         finalNodes.push({ x: cx, y: cy, floor: currFloor, type: 'stair_transit' });
         currFloor += step;
     }
     
-    finalNodes.push({ x: bestEndStair.visual_x || (bestEndStair.x*cs + cs/2), y: bestEndStair.visual_y || (bestEndStair.y*cs + cs/2), floor: endPt.floor, type: 'stair_transit' });
+    finalNodes.push({ x: bestEndStair.visual_x || (bestEndStair.points[0].x*cs + cs/2), y: bestEndStair.visual_y || (bestEndStair.points[0].y*cs + cs/2), floor: endPt.floor, type: 'stair_transit' });
     bestPhase3Path.forEach(p => finalNodes.push({ x: (p.x * cs) + (cs/2), y: (p.y * cs) + (cs/2), floor: endPt.floor }));
     finalNodes.push({ x: endPt.x, y: endPt.y, floor: endPt.floor, type: 'click' });
     

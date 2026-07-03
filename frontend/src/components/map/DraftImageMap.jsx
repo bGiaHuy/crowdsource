@@ -661,6 +661,7 @@ const DraftImageMap = () => {
 
                 {floorItems.map((item) => {
                   if (!item.bbox || (item.bbox.min_x === 0 && item.bbox.max_x === 0)) return null;
+                  if (item.item_id && item.item_id.startsWith('PERIMETER')) return null; // Hide invisible pathfinding walls
                   
                   const isSelected = selectedMapItem?.item_id === item.item_id || (highlightedRoomCode && highlightedRoomCode === item.room_code);
                   const isHovered = !isSelected && hoveredItem?.item_id === item.item_id;
