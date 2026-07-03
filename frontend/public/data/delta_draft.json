@@ -1078,6 +1078,7 @@
           "display_name": "NVS NỮ",
           "item_type": "toilet",
           "is_clickable": true,
+          "searchable": true,
           "bbox": {
             "min_x": 120,
             "min_y": 895,
@@ -1091,6 +1092,7 @@
           "display_name": "NVS NAM",
           "item_type": "toilet",
           "is_clickable": true,
+          "searchable": true,
           "bbox": {
             "min_x": 120,
             "min_y": 1000,
@@ -1234,6 +1236,7 @@
           "display_name": "NVS NAM",
           "item_type": "toilet",
           "is_clickable": true,
+          "searchable": true,
           "bbox": {
             "min_x": 2111,
             "min_y": 895,
@@ -1247,6 +1250,7 @@
           "display_name": "NVS NỮ",
           "item_type": "toilet",
           "is_clickable": true,
+          "searchable": true,
           "bbox": {
             "min_x": 2111,
             "min_y": 1000,
@@ -1812,6 +1816,7 @@
           "display_name": "NVS NỮ",
           "item_type": "toilet",
           "is_clickable": true,
+          "searchable": true,
           "bbox": {
             "min_x": 120,
             "min_y": 895,
@@ -1825,6 +1830,7 @@
           "display_name": "NVS NAM",
           "item_type": "toilet",
           "is_clickable": true,
+          "searchable": true,
           "bbox": {
             "min_x": 120,
             "min_y": 1000,
@@ -1968,6 +1974,7 @@
           "display_name": "NVS NAM",
           "item_type": "toilet",
           "is_clickable": true,
+          "searchable": true,
           "bbox": {
             "min_x": 2111,
             "min_y": 895,
@@ -1981,6 +1988,7 @@
           "display_name": "NVS NỮ",
           "item_type": "toilet",
           "is_clickable": true,
+          "searchable": true,
           "bbox": {
             "min_x": 2111,
             "min_y": 1000,

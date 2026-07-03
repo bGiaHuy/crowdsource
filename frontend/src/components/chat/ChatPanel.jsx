@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Bot, Sparkles, Trash2, Paperclip, ChevronRight, Menu, Plus, MessageSquare, X, Zap } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { sendChatMessage } from '../../services/api';
 import useAppStore from '../../stores/useAppStore';
 
@@ -23,11 +24,23 @@ const C = {
 };
 
 const ChatPanel = ({ embedded = false }) => {
+  const navigate = useNavigate();
   const [input, setInput] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 768);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
-  const { chatMessages, addChatMessage, clearChatMessages, setHighlightedRoomCode, user } = useAppStore();
+  const { 
+    chatMessages, 
+    addChatMessage, 
+    clearChatMessages, 
+    setHighlightedRoomCode, 
+    user,
+    isDeltaDraftMode,
+    draftDeltaData,
+    mapItems,
+    setCurrentFloorId,
+    incrementRouteTrigger
+  } = useAppStore();
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
   const textareaRef = useRef(null);
@@ -89,8 +102,71 @@ const ChatPanel = ({ embedded = false }) => {
       
       addChatMessage({ role: 'assistant', content: answer });
       
-      if (room_codes && room_codes.length > 0) {
+      if (room_codes && room_codes.length === 1) {
         setHighlightedRoomCode(room_codes[0]);
+      } else if (room_codes && room_codes.length === 2) {
+        // Resolve start and destination rooms
+        let startItem = null;
+        let endItem = null;
+        const codeStart = room_codes[0].toUpperCase().trim();
+        const codeEnd = room_codes[1].toUpperCase().trim();
+
+        if (isDeltaDraftMode && draftDeltaData && draftDeltaData.floors) {
+          const allItems = draftDeltaData.floors.flatMap(f => 
+            (f.items || []).filter(item => item.is_clickable && item.item_type !== 'wall').map(item => ({
+              ...item,
+              floor_name: f.floor_name || `Tầng ${f.floor}`,
+              floor_id: f.floor,
+              name: item.display_name
+            }))
+          );
+          startItem = allItems.find(item => item.room_code?.toUpperCase().trim() === codeStart);
+          endItem = allItems.find(item => item.room_code?.toUpperCase().trim() === codeEnd);
+        } else {
+          startItem = mapItems.find(item => item.room_code?.toUpperCase().trim() === codeStart);
+          endItem = mapItems.find(item => item.room_code?.toUpperCase().trim() === codeEnd);
+        }
+
+        if (startItem && endItem) {
+          const buildRoutePoint = (item) => ({
+            type: 'room',
+            roomCode: item.room_code,
+            label: `${item.room_code || item.name} - ${item.floor_name || `Tầng ${item.floor_id}`}`,
+            itemId: item.item_id || item.id,
+            bboxCenter: item.bbox ? {
+              x: item.bbox.min_x + (item.bbox.max_x - item.bbox.min_x) / 2,
+              y: item.bbox.min_y + (item.bbox.max_y - item.bbox.min_y) / 2,
+              floor: item.floor_id
+            } : {
+              x: item.center_x,
+              y: item.center_y,
+              floor: item.floor_id
+            }
+          });
+
+          const newStart = buildRoutePoint(startItem);
+          const newEnd = buildRoutePoint(endItem);
+
+          useAppStore.setState({
+            routeStart: newStart,
+            routeEnd: newEnd,
+            routePath: [],
+            routeMetadata: null,
+            routeError: null,
+            isCalculatingRoute: true,
+            selectedMapItem: null,
+            highlightedRoomCode: null
+          });
+
+          if (newStart.bboxCenter.floor != null) {
+            setCurrentFloorId(newStart.bboxCenter.floor);
+          }
+
+          incrementRouteTrigger();
+          
+          // Switch page context to Map
+          navigate('/map');
+        }
       }
     } catch (error) {
       console.error('Chat error:', error);

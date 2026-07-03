@@ -74,8 +74,26 @@ const PathfindingPanel = () => {
         }));
       });
       setAllMapItems(allDraftItems);
+      return;
     }
-  }, [isDeltaDraftMode, draftDeltaData]);
+
+    const fetchAllItems = async () => {
+      const { floors } = useAppStore.getState();
+      if (!floors || floors.length === 0) return;
+      try {
+        const { getMapItems } = await import('../../services/api');
+        const promises = floors.map(f => getMapItems(f.id));
+        const responses = await Promise.all(promises);
+        const allItems = responses.flatMap((res, idx) =>
+          res.data.map(item => ({ ...item, floor_name: floors[idx].name, floor_id: floors[idx].id }))
+        );
+        setAllMapItems(allItems);
+      } catch (err) {
+        console.error('Error fetching map items for search', err);
+      }
+    };
+    fetchAllItems();
+  }, [isDeltaDraftMode, draftDeltaData, useAppStore.getState().floors]); // Ignoring strict dependency here since floors usually populates on mount
 
   // Close autocomplete when clicking outside (desktop)
   useEffect(() => {
@@ -99,10 +117,20 @@ const PathfindingPanel = () => {
   const searchItems = (val) => {
     if (val.trim() === '') return [];
     const lowerQ = removeAccents(val.toLowerCase());
+    const queryWords = lowerQ.split(/\s+/).filter(w => w);
+
     return allMapItems.filter(r => {
-      return (r.room_code && removeAccents(r.room_code.toLowerCase()).includes(lowerQ)) ||
-             (r.display_name && removeAccents(r.display_name.toLowerCase()).includes(lowerQ));
-    }).slice(0, 8);
+      const matchesWords = (text) => {
+        if (!text) return false;
+        const normalized = removeAccents(text.toLowerCase());
+        return queryWords.every(word => normalized.includes(word));
+      };
+
+      if (isDeltaDraftMode) {
+        return matchesWords(r.room_code) || matchesWords(r.display_name) || matchesWords(r.item_id);
+      }
+      return matchesWords(r.room_code) || matchesWords(r.name) || (r.aliases && r.aliases.some(alias => matchesWords(alias)));
+    }).slice(0, 20);
   };
 
   const handleStartSearch = (e) => {

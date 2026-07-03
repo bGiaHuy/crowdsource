@@ -19,7 +19,10 @@ import pgvector.asyncpg
 
 @event.listens_for(engine.sync_engine, "connect")
 def register_custom_types(dbapi_connection, connection_record):
-    dbapi_connection.run_async(pgvector.asyncpg.register_vector)
+    try:
+        dbapi_connection.run_async(pgvector.asyncpg.register_vector)
+    except Exception:
+        pass
 
 async def get_db():
     async with async_session_factory() as session:

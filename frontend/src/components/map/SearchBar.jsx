@@ -73,15 +73,19 @@ const SearchBar = () => {
     if (val.trim() === '') { setResults([]); return; }
     if (allMapItems && allMapItems.length > 0) {
       const lowerQ = removeAccents(val.toLowerCase());
+      const queryWords = lowerQ.split(/\s+/).filter(w => w);
+
       const filtered = allMapItems.filter(r => {
+        const matchesWords = (text) => {
+          if (!text) return false;
+          const normalized = removeAccents(text.toLowerCase());
+          return queryWords.every(word => normalized.includes(word));
+        };
+
         if (isDeltaDraftMode) {
-          return (r.room_code && removeAccents(r.room_code.toLowerCase()).includes(lowerQ)) ||
-                 (r.display_name && removeAccents(r.display_name.toLowerCase()).includes(lowerQ)) ||
-                 (r.item_id && removeAccents(r.item_id.toLowerCase()).includes(lowerQ));
+          return matchesWords(r.room_code) || matchesWords(r.display_name) || matchesWords(r.item_id);
         }
-        return (r.room_code && removeAccents(r.room_code.toLowerCase()).includes(lowerQ)) ||
-               (r.name && removeAccents(r.name.toLowerCase()).includes(lowerQ)) ||
-               (r.aliases && r.aliases.some(alias => removeAccents(alias.toLowerCase()).includes(lowerQ)));
+        return matchesWords(r.room_code) || matchesWords(r.name) || (r.aliases && r.aliases.some(alias => matchesWords(alias)));
       }).slice(0, 20);
       setResults(filtered);
     }
