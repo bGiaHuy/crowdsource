@@ -86,6 +86,11 @@ const DraftImageMap = () => {
   const [hoveredItem, setHoveredItem] = useState(null);
   const [clickPos, setClickPos] = useState(null); // screen coords relative to container
   const [isLegendOpen, setIsLegendOpen] = useState(false); // mobile legend toggle
+  
+  // Drag box states for Area Report
+  const [reportDragStart, setReportDragStart] = useState(null);
+  const [reportDragCurrent, setReportDragCurrent] = useState(null);
+  
   const dragStart = useRef({ x: 0, y: 0 });
 
   const containerRef = useRef(null);
@@ -103,19 +108,79 @@ const DraftImageMap = () => {
     if (!ctm) return;
     const svgP = pt.matrixTransform(ctm.inverse());
     
-    // Report mode: area type click
+    // Report mode: area type click is now handled by pointer events
     const store = useAppStore.getState();
     if (store.isReportMode && store.reportStep === 'select_target' && store.pendingReport) {
       const isArea = ['wet_floor','construction','debris','other'].includes(store.pendingReport.obstacle_type);
-      if (isArea) {
-        store.setPendingReport({ ...store.pendingReport, x: svgP.x, y: svgP.y, radius: 60, floor: floorId });
-        store.setReportStep('confirm');
-        return;
-      }
+      if (isArea) return;
     }
     
     useAppStore.getState().handleMapClick(svgP.x, svgP.y, floorId);
   };
+
+  // --- SVG Pointer handlers for Area Report Drag Box ---
+  const handleSvgPointerDown = (e, svgElement, floorId) => {
+    const store = useAppStore.getState();
+    if (store.isReportMode && store.reportStep === 'select_target' && store.pendingReport) {
+      const isArea = ['wet_floor','construction','debris','other'].includes(store.pendingReport.obstacle_type);
+      if (isArea) {
+        e.stopPropagation(); // Ngăn kéo bản đồ
+        e.currentTarget.setPointerCapture(e.pointerId); // Giữ pointer
+        const pt = svgElement.createSVGPoint();
+        pt.x = e.clientX; pt.y = e.clientY;
+        const ctm = svgElement.getScreenCTM();
+        if (!ctm) return;
+        const svgP = pt.matrixTransform(ctm.inverse());
+        
+        setReportDragStart({ x: svgP.x, y: svgP.y, floorId });
+        setReportDragCurrent({ x: svgP.x, y: svgP.y });
+      }
+    }
+  };
+
+  const handleSvgPointerMove = (e, svgElement) => {
+    if (reportDragStart) {
+      e.stopPropagation();
+      const pt = svgElement.createSVGPoint();
+      pt.x = e.clientX; pt.y = e.clientY;
+      const ctm = svgElement.getScreenCTM();
+      if (!ctm) return;
+      const svgP = pt.matrixTransform(ctm.inverse());
+      setReportDragCurrent({ x: svgP.x, y: svgP.y });
+    }
+  };
+
+  const handleSvgPointerUp = (e) => {
+    if (reportDragStart && reportDragCurrent) {
+      e.stopPropagation();
+      e.currentTarget.releasePointerCapture(e.pointerId);
+      const store = useAppStore.getState();
+      
+      const dx = reportDragCurrent.x - reportDragStart.x;
+      const dy = reportDragCurrent.y - reportDragStart.y;
+      const width = Math.abs(dx);
+      const height = Math.abs(dy);
+      
+      const cx = reportDragStart.x + dx/2;
+      const cy = reportDragStart.y + dy/2;
+      
+      const radius = Math.max(width, height) / 2;
+      const finalRadius = Math.max(30, Math.min(radius, 300));
+      
+      store.setPendingReport({ 
+        ...store.pendingReport, 
+        x: cx, 
+        y: cy, 
+        radius: finalRadius, 
+        floor: reportDragStart.floorId 
+      });
+      store.setReportStep('confirm');
+      
+      setReportDragStart(null);
+      setReportDragCurrent(null);
+    }
+  };
+  // -----------------------------------------------------
 
   // Reset init when floor changes so map re-fits on floor switch
   const prevFloorRef = useRef(null);
@@ -632,6 +697,10 @@ const DraftImageMap = () => {
               <svg 
                 key={floor.floor || idx}
                 onClick={(e) => handleSvgClick(e, e.currentTarget, floor.floor || floor.id)}
+                onPointerDown={(e) => handleSvgPointerDown(e, e.currentTarget, floor.floor || floor.id)}
+                onPointerMove={(e) => handleSvgPointerMove(e, e.currentTarget)}
+                onPointerUp={(e) => handleSvgPointerUp(e)}
+                onPointerCancel={(e) => handleSvgPointerUp(e)}
                 viewBox={`${floor.image_min_x || 0} ${floor.image_min_y || 0} ${floor.image_width} ${floor.image_height}`}
                 style={{ 
                   position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', 
@@ -1181,6 +1250,20 @@ const DraftImageMap = () => {
                     } catch (err) { console.error('Downvote failed:', err); }
                   }}
                 />
+                {/* Render report drag box if active */}
+                {reportDragStart && reportDragCurrent && isActiveFloor && (
+                  <rect 
+                    x={Math.min(reportDragStart.x, reportDragCurrent.x)}
+                    y={Math.min(reportDragStart.y, reportDragCurrent.y)}
+                    width={Math.abs(reportDragCurrent.x - reportDragStart.x)}
+                    height={Math.abs(reportDragCurrent.y - reportDragStart.y)}
+                    fill="rgba(239, 68, 68, 0.15)"
+                    stroke="#EF4444"
+                    strokeWidth="3"
+                    strokeDasharray="6,6"
+                    style={{ pointerEvents: 'none' }}
+                  />
+                )}
               </svg>
             );
           })}
