@@ -5,6 +5,7 @@ import SearchBar from '../components/map/SearchBar';
 import PathfindingPanel from '../components/map/PathfindingPanel';
 import useAppStore from '../stores/useAppStore';
 import DraftImageMap from '../components/map/DraftImageMap';
+import TestObstaclesPanel from '../components/map/TestObstaclesPanel';
 import { getActiveObstacles } from '../services/api';
 
 const MapPage = () => {
@@ -17,7 +18,7 @@ const MapPage = () => {
     navGridData, setNavGridData,
     setRouteMetadata, setRouteError,
     routeTriggerKey, setIsCalculatingRoute, preferElevator,
-    activeObstacles, setActiveObstacles
+    activeObstacles, setActiveObstacles, avoidObstacles
   } = useAppStore();
   const workerRef = useRef(null);
 
@@ -52,10 +53,11 @@ const MapPage = () => {
   // ── Fire worker when user presses "Tìm đường" ─────────────────────────────
   useEffect(() => {
     if (routeTriggerKey === 0) return;
-    const { routeStart: rs, routeEnd: re, activeObstacles: obs } = useAppStore.getState();
+    const { routeStart: rs, routeEnd: re, activeObstacles: obs, mockObstacles: mocks, avoidObstacles } = useAppStore.getState();
     if (rs && re && navGridData && workerRef.current) {
       setIsCalculatingRoute(true);
-      const obstacles = (obs || []).filter(o => o.status === 'active').map(o => {
+      const combinedObs = [...(obs || []), ...(mocks || [])];
+      const obstacles = combinedObs.filter(o => o.status === 'active').map(o => {
         if (o.target_item_id) return { type: 'targeted', obstacle_type: o.obstacle_type, target_item_id: o.target_item_id, floor: o.floor };
         return { type: 'area', floor: o.floor, x: o.x, y: o.y, radius: o.radius || 60 };
       });
@@ -70,6 +72,7 @@ const MapPage = () => {
           endItemId: re.itemId,
           endBboxCenter: re.bboxCenter,
           preferElevator,
+          avoidObstacles,
           obstacles
         }
       });
@@ -90,7 +93,7 @@ const MapPage = () => {
       setRouteMetadata(null);
       setRouteError(null);
     }
-  }, [routeStart, routeEnd, navGridData, graphData, setRoutePath, setRouteMetadata, setRouteError, routeTriggerKey, preferElevator]);
+  }, [routeStart, routeEnd, navGridData, graphData, setRoutePath, setRouteMetadata, setRouteError, routeTriggerKey, preferElevator, avoidObstacles]);
 
   // ── Fetch building / map data ─────────────────────────────────────────────
   useEffect(() => {
@@ -241,6 +244,11 @@ const MapPage = () => {
       }}>
         <PathfindingPanel />
       </div>
+
+      {/* ── Test Simulator Panel ──────────────────────────────────────── */}
+      {import.meta.env.DEV && (
+        <TestObstaclesPanel />
+      )}
 
       <style dangerouslySetInnerHTML={{__html: `
         /* Desktop: full search bar, left panel */

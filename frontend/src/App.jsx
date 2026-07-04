@@ -14,8 +14,8 @@ import ChatPage from './pages/ChatPage';
 import ProfilePage from './pages/ProfilePage';
 import AuthPage from './pages/AuthPage';
 import ResetPasswordPage from './pages/ResetPasswordPage';
-
 import AuthCallbackPage from './pages/AuthCallbackPage';
+import AdminPage from './pages/AdminPage';
 
 // Dev-only tool: lazy-loaded to exclude from production bundle
 const DeltaMapAnnotationTool = lazy(() => import('./tools/DeltaMapAnnotationTool'));
@@ -43,6 +43,7 @@ function App() {
         <Route path="/auth" element={!user ? <AuthPage /> : <Navigate to="/" />} />
         <Route path="/auth/callback" element={<AuthCallbackPage />} />
         <Route path="/reset-password" element={<ResetPasswordPage />} />
+        <Route path="/admin" element={<AdminPage />} />
         
         <Route path="/" element={user ? <Layout /> : <Navigate to="/auth" />}>
           <Route index element={<HomePage />} />

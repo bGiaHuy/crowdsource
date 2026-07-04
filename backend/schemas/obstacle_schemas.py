@@ -55,3 +55,7 @@ class VoteResponse(BaseModel):
     upvotes: int
     downvotes: int
     auto_removed: bool = False
+
+class VoteRequest(BaseModel):
+    user_id: Optional[str] = None
+    tester_mode: Optional[bool] = False

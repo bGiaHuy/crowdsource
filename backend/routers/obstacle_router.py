@@ -17,8 +17,9 @@ from database.connection import get_db
 from database.models import Obstacle
 from schemas.obstacle_schemas import (
     ObstacleCreate, ObstacleUpdate, ObstacleResponse,
-    ObstacleListResponse, VoteResponse
+    ObstacleListResponse, VoteResponse, VoteRequest
 )
+from sqlalchemy.orm.attributes import flag_modified
 from services.obstacle_service import ObstacleService
 
 router = APIRouter(prefix="/api/obstacles", tags=["obstacles"])
@@ -120,6 +121,7 @@ async def delete_obstacle(
 @router.post("/{obstacle_id}/upvote", response_model=VoteResponse)
 async def upvote_obstacle(
     obstacle_id: int,
+    data: VoteRequest,
     db: AsyncSession = Depends(get_db)
 ):
     """SV xác nhận vật cản vẫn còn → upvote +1."""
@@ -129,6 +131,19 @@ async def upvote_obstacle(
     obstacle = result.scalar_one_or_none()
     if not obstacle:
         raise HTTPException(status_code=404, detail="Obstacle not found")
+
+    if not data.tester_mode and data.user_id:
+        if not obstacle.votes_data:
+            obstacle.votes_data = {}
+        
+        user_vote = obstacle.votes_data.get(data.user_id)
+        if user_vote == "upvote":
+            raise HTTPException(status_code=400, detail="Bạn đã upvote rồi")
+        elif user_vote == "downvote":
+            raise HTTPException(status_code=400, detail="Bạn đã downvote rồi, không thể upvote nữa")
+            
+        obstacle.votes_data[data.user_id] = "upvote"
+        flag_modified(obstacle, "votes_data")
 
     obstacle.upvotes += 1
     await db.commit()
@@ -144,6 +159,7 @@ async def upvote_obstacle(
 @router.post("/{obstacle_id}/downvote", response_model=VoteResponse)
 async def downvote_obstacle(
     obstacle_id: int,
+    data: VoteRequest,
     db: AsyncSession = Depends(get_db)
 ):
     """SV báo vật cản hết rồi → downvote +1. Nếu ≥5 → auto-remove."""
@@ -153,6 +169,19 @@ async def downvote_obstacle(
     obstacle = result.scalar_one_or_none()
     if not obstacle:
         raise HTTPException(status_code=404, detail="Obstacle not found")
+
+    if not data.tester_mode and data.user_id:
+        if not obstacle.votes_data:
+            obstacle.votes_data = {}
+            
+        user_vote = obstacle.votes_data.get(data.user_id)
+        if user_vote == "downvote":
+            raise HTTPException(status_code=400, detail="Bạn đã downvote rồi")
+        elif user_vote == "upvote":
+            raise HTTPException(status_code=400, detail="Bạn đã upvote rồi, không thể downvote nữa")
+            
+        obstacle.votes_data[data.user_id] = "downvote"
+        flag_modified(obstacle, "votes_data")
 
     obstacle.downvotes += 1
     await db.commit()

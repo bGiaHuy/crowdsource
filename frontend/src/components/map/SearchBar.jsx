@@ -10,7 +10,7 @@ const removeAccents = (str) => {
 };
 
 const SearchBar = () => {
-  const { floors, setSelectedMapItem, setCurrentFloorId, setHighlightedRoomCode, isDeltaDraftMode, draftDeltaData } = useAppStore();
+  const { floors, setSelectedMapItem, setCurrentFloorId, setHighlightedRoomCode, isDeltaDraftMode, draftDeltaData, activeObstacles } = useAppStore();
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [results, setResults] = useState([]);
@@ -113,54 +113,58 @@ const SearchBar = () => {
   };
 
   /* ── Shared result item ── */
-  const ResultItem = ({ item, isMobile = false }) => (
-    <button
-      onClick={() => handleSelect(item)}
-      style={{
-        width: '100%',
-        display: 'flex',
-        alignItems: 'center',
-        padding: isMobile ? '14px 16px' : '10px 14px',
-        borderBottom: '1px solid var(--color-border)',
-        textAlign: 'left',
-        backgroundColor: 'transparent',
-        cursor: 'pointer',
-        gap: '12px',
-        minHeight: isMobile ? '60px' : '52px',
-        border: 'none',
-        borderBottom: '1px solid var(--color-border)',
-        fontFamily: 'inherit',
-        WebkitTapHighlightColor: 'transparent',
-      }}
-      onTouchStart={(e) => e.currentTarget.style.backgroundColor = 'var(--color-muted)'}
-      onTouchEnd={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-      onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-muted)'}
-      onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-    >
-      <div style={{
-        width: isMobile ? 40 : 34,
-        height: isMobile ? 40 : 34,
-        borderRadius: isMobile ? 12 : 10,
-        backgroundColor: 'var(--color-primary-soft)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        flexShrink: 0,
-        border: '1px solid rgba(242,109,33,0.2)',
-      }}>
-        <MapPin size={isMobile ? 17 : 15} color="var(--color-primary)" />
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
+  const ResultItem = ({ item, isMobile = false }) => {
+    const hasObstacle = activeObstacles?.some(o => o.target_item_id === item.item_id || (item.room_code && o.target_item_id === item.room_code));
+
+    return (
+      <button
+        onClick={() => handleSelect(item)}
+        style={{
+          width: '100%',
+          display: 'flex',
+          alignItems: 'center',
+          padding: isMobile ? '14px 16px' : '10px 14px',
+          borderBottom: '1px solid var(--color-border)',
+          textAlign: 'left',
+          backgroundColor: 'transparent',
+          cursor: 'pointer',
+          gap: '12px',
+          minHeight: isMobile ? '60px' : '52px',
+          border: 'none',
+          borderBottom: '1px solid var(--color-border)',
+          fontFamily: 'inherit',
+          WebkitTapHighlightColor: 'transparent',
+        }}
+        onTouchStart={(e) => e.currentTarget.style.backgroundColor = 'var(--color-muted)'}
+        onTouchEnd={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-muted)'}
+        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+      >
         <div style={{
-          fontWeight: 600,
-          color: 'var(--color-foreground)',
-          fontSize: isMobile ? '14.5px' : '13.5px',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'nowrap',
-          letterSpacing: '-0.01em',
+          width: isMobile ? 40 : 34,
+          height: isMobile ? 40 : 34,
+          borderRadius: isMobile ? 12 : 10,
+          backgroundColor: hasObstacle ? 'rgba(245, 158, 11, 0.2)' : 'var(--color-primary-soft)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          flexShrink: 0,
+          border: hasObstacle ? '1px solid rgba(245, 158, 11, 0.4)' : '1px solid rgba(242,109,33,0.2)',
         }}>
-          {item.room_code || item.name}
-          {isDeltaDraftMode && ` — ${item.item_id.split('-').slice(-2).join('-')}`}
+          <MapPin size={isMobile ? 17 : 15} color={hasObstacle ? '#F59E0B' : 'var(--color-primary)'} />
         </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{
+            fontWeight: 600,
+            color: hasObstacle ? '#F59E0B' : 'var(--color-foreground)',
+            fontSize: isMobile ? '14.5px' : '13.5px',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            letterSpacing: '-0.01em',
+          }}>
+            {item.room_code || item.name}
+            {isDeltaDraftMode && ` — ${item.item_id?.split('-').slice(-2).join('-')}`}
+            {hasObstacle && <span style={{ marginLeft: '4px', fontSize: '14px' }}>⚠️</span>}
+          </div>
         <div style={{
           fontSize: isMobile ? '12.5px' : '12px',
           color: 'var(--color-muted-foreground)',
@@ -176,6 +180,7 @@ const SearchBar = () => {
       )}
     </button>
   );
+  };
 
   return (
     <div ref={containerRef} className="search-bar-container" style={{ position: 'relative', width: '100%', zIndex: 2000 }}>

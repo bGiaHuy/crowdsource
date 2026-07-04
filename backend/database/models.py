@@ -234,6 +234,7 @@ class Obstacle(Base):
     downvotes = Column(Integer, default=0)
     description = Column(Text, default="")
     confirmed_by = Column(String(100), nullable=True)
+    votes_data = Column(JSON, default=dict)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
     removed_at = Column(DateTime, nullable=True)
 

@@ -57,6 +57,12 @@ const useAppStore = create(
       preferElevator: false,
       setPreferElevator: (val) => set({ preferElevator: val }),
 
+      avoidObstacles: true,
+      setAvoidObstacles: (val) => set({ avoidObstacles: val }),
+
+      mockObstacles: [],
+      setMockObstacles: (obstacles) => set({ mockObstacles: obstacles }),
+
       incrementRouteTrigger: () => set(state => ({ routeTriggerKey: state.routeTriggerKey + 1 })),
       
       setRoutePoints: (start, end) => set({ routeStart: start, routeEnd: end }),
@@ -67,11 +73,11 @@ const useAppStore = create(
       setIsCalculatingRoute: (status) => set({ isCalculatingRoute: status }),
       setRouteMetadata: (meta) => set({ routeMetadata: meta }),
       setRouteError: (error) => set({ routeError: error }),
+      clickPoint: null,
+      setClickPoint: (point) => set({ clickPoint: point }),
       clearRoute: () => set({ routeStart: null, routeEnd: null, routePath: [], routeMetadata: null, routeError: null, isCalculatingRoute: false, routingSelectionMode: null }),
 
       handleMapClick: (x, y, floor) => set((state) => {
-        if (!state.routingSelectionMode) return {};
-
         const point = {
           type: 'click',
           roomCode: null,
@@ -79,13 +85,17 @@ const useAppStore = create(
           label: `Điểm chọn (Tầng ${floor})`
         };
 
+        const updates = { clickPoint: { x, y, floor } };
+
         if (state.routingSelectionMode === 'start') {
-          return { routeStart: point, routingSelectionMode: null };
+          updates.routeStart = point;
+          updates.routingSelectionMode = null;
         } else if (state.routingSelectionMode === 'end') {
-          return { routeEnd: point, routingSelectionMode: null };
+          updates.routeEnd = point;
+          updates.routingSelectionMode = null;
         }
-        
-        return { routingSelectionMode: null };
+
+        return updates;
       }),
 
 

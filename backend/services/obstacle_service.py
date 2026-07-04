@@ -107,7 +107,9 @@ class ObstacleService:
         nearby = []
         for r in pending_reports:
             dist = math.sqrt((r.x - report.x) ** 2 + (r.y - report.y) ** 2)
-            if dist < AREA_PROXIMITY_PX:
+            # 50% overlap approximation: distance between centers <= average radius
+            avg_radius = ((r.radius or 60) + (report.radius or 60)) / 2
+            if dist <= avg_radius:
                 nearby.append(r)
 
         if len(nearby) >= AUTO_CREATE_THRESHOLD:

@@ -25,6 +25,7 @@ class ReportCreate(BaseModel):
     radius: Optional[float] = Field(default=None, ge=10, le=300)
     description: str = Field(default="", max_length=500)
     reporter_id: Optional[str] = None
+    tester_mode: Optional[bool] = False
 
 
 class ReportResponse(BaseModel):

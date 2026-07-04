@@ -1,11 +1,9 @@
 """
 Router — Report (SV gửi báo cáo sự cố)
-POST /api/reports  — Tạo report + check auto-create obstacle
-GET  /api/reports  — Admin xem danh sách reports
 """
-from fastapi import APIRouter, Depends, Query
+from sqlalchemy import select, func
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
 from typing import Optional
 
 from database.connection import get_db
@@ -22,6 +20,33 @@ async def create_report(
     db: AsyncSession = Depends(get_db)
 ):
     """SV gửi báo cáo sự cố. Hệ thống tự kiểm tra auto-create obstacle."""
+    # Check duplicate if not tester mode and reporter_id is provided
+    if not data.tester_mode and data.reporter_id:
+        if data.target_item_id:
+            dup_query = select(Report).where(
+                Report.reporter_id == data.reporter_id,
+                Report.obstacle_type == data.obstacle_type.value,
+                Report.target_item_id == data.target_item_id,
+                Report.status.in_(["pending", "aggregated"])
+            )
+        elif data.x is not None and data.y is not None:
+            dup_query = select(Report).where(
+                Report.reporter_id == data.reporter_id,
+                Report.obstacle_type == data.obstacle_type.value,
+                Report.x.isnot(None),
+                Report.y.isnot(None),
+                func.abs(Report.x - data.x) < 20,
+                func.abs(Report.y - data.y) < 20,
+                Report.status.in_(["pending", "aggregated"])
+            )
+        else:
+            dup_query = None
+
+        if dup_query is not None:
+            existing_report = (await db.execute(dup_query)).scalars().first()
+            if existing_report:
+                raise HTTPException(status_code=400, detail="Bạn đã báo cáo lỗi này rồi")
+
     report = Report(
         building_code=data.building_code,
         floor=data.floor,

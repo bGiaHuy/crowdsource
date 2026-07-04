@@ -70,7 +70,7 @@ const LEGEND_ITEMS = [
 ];
 
 const DraftImageMap = () => {
-  const { currentFloorId, draftDeltaData, selectedMapItem, setSelectedMapItem, highlightedRoomCode, routePath, routeStart, routeEnd, clickPoint, setCurrentFloorId, activeObstacles, isReportMode, setReportMode, reportStep, pendingReport, setPendingReport, setReportStep, clearPendingReport } = useAppStore();
+  const { currentFloorId, draftDeltaData, selectedMapItem, setSelectedMapItem, highlightedRoomCode, routePath, routeStart, routeEnd, clickPoint, setCurrentFloorId, activeObstacles, mockObstacles, isReportMode, setReportMode, reportStep, pendingReport, setPendingReport, setReportStep, clearPendingReport } = useAppStore();
   const [currentFloor, setCurrentFloor] = useState(null);
   
   // Viewport states
@@ -811,9 +811,13 @@ const DraftImageMap = () => {
                           if (store.isReportMode && store.reportStep === 'select_target' && store.pendingReport) {
                             const isTargeted = ['elevator_broken','stairs_locked','room_locked'].includes(store.pendingReport.obstacle_type);
                             if (isTargeted) {
-                              const typeMap = { elevator_broken: 'elevator', stairs_locked: 'stair', room_locked: 'room' };
-                              const expected = typeMap[store.pendingReport.obstacle_type];
-                              if (expected && item.item_type !== expected) return;
+                              const typeMap = { 
+                                elevator_broken: ['elevator'], 
+                                stairs_locked: ['stair'], 
+                                room_locked: ['room', 'office', 'lab', 'hall', 'meeting', 'library', 'door'] 
+                              };
+                              const expectedTypes = typeMap[store.pendingReport.obstacle_type];
+                              if (expectedTypes && !expectedTypes.includes(item.item_type)) return;
                               store.setPendingReport({ ...store.pendingReport, target_item_id: item.item_id, floor: floor.floor || floor.id });
                               store.setReportStep('confirm');
                               return;
@@ -1212,7 +1216,7 @@ const DraftImageMap = () => {
                       <animate attributeName="r" values="8;32" dur="2s" repeatCount="indefinite" />
                       <animate attributeName="opacity" values="0.8;0" dur="2s" repeatCount="indefinite" />
                     </circle>
-                    <circle cx="0" cy="0" r="16" fill="none" stroke="#EF4444" strokeWidth="2">
+                      <circle cx="0" cy="0" r="16" fill="none" stroke="#EF4444" strokeWidth="2">
                       <animate attributeName="r" values="8;24" dur="2s" begin="1s" repeatCount="indefinite" />
                       <animate attributeName="opacity" values="0.8;0" dur="2s" begin="1s" repeatCount="indefinite" />
                     </circle>
@@ -1224,28 +1228,37 @@ const DraftImageMap = () => {
                 )}
                 {/* Obstacle Markers Overlay */}
                 <ObstacleMarkers
-                  obstacles={activeObstacles.filter(o => o.floor === (floor.floor || floor.id))}
+                  obstacles={[...(activeObstacles || []), ...(mockObstacles || [])].filter(o => o.floor === (floor.floor || floor.id))}
                   draftFloorData={floor}
                   currentFloor={floor.floor || floor.id}
-                  onUpvote={async (id) => {
+                  mapRotation={is3DMode ? (rotation - 45) : rotation}
+                  onUpvote={async (id, isTesterMode) => {
                     try {
                       const { upvoteObstacle } = await import('../../services/api');
-                      const res = await upvoteObstacle(id);
+                      const userId = useAppStore.getState().user?.id || 'anonymous';
+                      const res = await upvoteObstacle(id, { user_id: userId, tester_mode: isTesterMode });
                       const obs = useAppStore.getState().activeObstacles.map(o => o.id === id ? { ...o, upvotes: res.data.upvotes, downvotes: res.data.downvotes } : o);
                       useAppStore.getState().setActiveObstacles(obs);
-                    } catch (err) { console.error('Upvote failed:', err); }
+                    } catch (err) { 
+                      const msg = err.response?.data?.detail || 'Upvote failed';
+                      alert('❌ ' + msg);
+                    }
                   }}
-                  onDownvote={async (id) => {
+                  onDownvote={async (id, isTesterMode) => {
                     try {
                       const { downvoteObstacle } = await import('../../services/api');
-                      const res = await downvoteObstacle(id);
+                      const userId = useAppStore.getState().user?.id || 'anonymous';
+                      const res = await downvoteObstacle(id, { user_id: userId, tester_mode: isTesterMode });
                       if (res.data.auto_removed) {
                         useAppStore.getState().setActiveObstacles(useAppStore.getState().activeObstacles.filter(o => o.id !== id));
                       } else {
                         const obs = useAppStore.getState().activeObstacles.map(o => o.id === id ? { ...o, upvotes: res.data.upvotes, downvotes: res.data.downvotes } : o);
                         useAppStore.getState().setActiveObstacles(obs);
                       }
-                    } catch (err) { console.error('Downvote failed:', err); }
+                    } catch (err) { 
+                      const msg = err.response?.data?.detail || 'Downvote failed';
+                      alert('❌ ' + msg);
+                    }
                   }}
                 />
                 {/* Render report drag circle if active */}
@@ -1273,6 +1286,15 @@ const DraftImageMap = () => {
                     strokeDasharray="6,6"
                     style={{ pointerEvents: 'none' }}
                   />
+                )}
+                {/* Render recent click point for Mock Simulator */}
+                {clickPoint && clickPoint.floor === (floor.floor || floor.id) && (
+                  <g transform={`translate(${clickPoint.x}, ${clickPoint.y})`} style={{ pointerEvents: 'none' }}>
+                    <circle cx="0" cy="0" r="4" fill="#8B5CF6" />
+                    <circle cx="0" cy="0" r="16" fill="none" stroke="#8B5CF6" strokeWidth="2" strokeDasharray="4,4">
+                      <animateTransform attributeName="transform" type="rotate" from="0" to="360" dur="4s" repeatCount="indefinite" />
+                    </circle>
+                  </g>
                 )}
               </svg>
             );

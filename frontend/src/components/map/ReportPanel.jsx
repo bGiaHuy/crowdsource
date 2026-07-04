@@ -61,7 +61,8 @@ const ReportPanel = () => {
 
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitResult, setSubmitResult] = useState(null); // null | 'success' | 'error' | 'obstacle_created'
+  const [isTesterMode, setIsTesterMode] = useState(false);
+  const [submitResult, setSubmitResult] = useState(null); // null | 'success' | 'obstacle_created' | <error message>
 
   // Chỉ hiện ở bước select_type hoặc confirm
   if (!reportStep || reportStep === 'select_target') return null;
@@ -84,6 +85,8 @@ const ReportPanel = () => {
         y: pendingReport.y || null,
         radius: pendingReport.radius || null,
         description: description.trim(),
+        reporter_id: useAppStore.getState().user?.id || 'anonymous',
+        tester_mode: isTesterMode,
       });
       // Kiểm tra nếu response có obstacle_created
       const obstacleCreated = res.data?.obstacle_created;
@@ -107,15 +110,43 @@ const ReportPanel = () => {
       }, 2500);
     } catch (err) {
       console.error('Report failed:', err);
-      setSubmitResult('error');
-      setTimeout(() => setSubmitResult(null), 3000);
+      const errMsg = err.response?.data?.detail || 'Gửi báo cáo thất bại. Vui lòng thử lại!';
+      setSubmitResult(errMsg);
+      setTimeout(() => setSubmitResult(null), 3500);
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const allTypes = [...TARGETED_TYPES, ...AREA_TYPES];
-  const selectedTypeInfo = allTypes.find(t => t.value === pendingReport?.obstacle_type);
+  const handleTestMenuBypass = async () => {
+    if (!pendingReport) return;
+    setIsSubmitting(true);
+    try {
+      const { createObstacleDirectly, getActiveObstacles } = await import('../../services/api');
+      await createObstacleDirectly({
+        building_code: 'DELTA',
+        floor: pendingReport.floor || currentFloorId,
+        obstacle_type: pendingReport.obstacle_type,
+        target_item_id: pendingReport.target_item_id || null,
+        x: pendingReport.x || null,
+        y: pendingReport.y || null,
+        radius: pendingReport.radius || null,
+        description: description.trim() || 'Tạo từ Test Menu',
+      });
+      setSubmitResult('obstacle_created');
+      
+      const obsRes = await getActiveObstacles('DELTA');
+      if (obsRes.data?.obstacles) {
+        useAppStore.getState().setActiveObstacles(obsRes.data.obstacles);
+      }
+    } catch (error) {
+      setSubmitResult('error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const selectedTypeInfo = [...TARGETED_TYPES, ...AREA_TYPES].find(t => t.value === pendingReport?.obstacle_type);
 
   // ── Bước 1: Chọn loại ──
   if (reportStep === 'select_type') {
@@ -235,6 +266,19 @@ const ReportPanel = () => {
                 background: 'rgba(255,255,255,0.6)', boxSizing: 'border-box',
               }}
             />
+            
+            <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <input 
+                type="checkbox" 
+                id="testerMode"
+                checked={isTesterMode}
+                onChange={(e) => setIsTesterMode(e.target.checked)}
+                style={{ accentColor: '#EA580C', cursor: 'pointer', width: '16px', height: '16px' }}
+              />
+              <label htmlFor="testerMode" style={{ fontSize: '13px', fontWeight: 600, color: '#4B5563', cursor: 'pointer', userSelect: 'none' }}>
+                Tester Mode (Bỏ qua chặn trùng lặp)
+              </label>
+            </div>
           </div>
 
           {/* Submit + Result */}
@@ -255,27 +299,50 @@ const ReportPanel = () => {
                 🚨 Đủ báo cáo! Vật cản đã được tạo trên bản đồ!
               </div>
             )}
-            {submitResult === 'error' && (
+            {submitResult && submitResult !== 'success' && submitResult !== 'obstacle_created' && (
               <div style={{
                 textAlign: 'center', padding: '12px', borderRadius: '10px',
                 background: 'rgba(220, 38, 38, 0.1)', color: '#991B1B', fontWeight: 600, fontSize: '14px'
               }}>
-                ❌ Gửi báo cáo thất bại. Vui lòng thử lại!
+                ❌ {submitResult}
               </div>
             )}
             {!submitResult && (
-              <button onClick={handleSubmit} disabled={isSubmitting}
-                style={{
-                  width: '100%', padding: '12px', borderRadius: '10px', border: 'none',
-                  background: 'linear-gradient(135deg, #DC2626, #F97316)', color: '#fff',
-                  fontWeight: 700, fontSize: '14px', cursor: 'pointer',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
-                  transition: 'all 0.3s ease', opacity: isSubmitting ? 0.7 : 1,
-                }}
-              >
-                <Send size={16} />
-                {isSubmitting ? 'Đang gửi...' : 'Gửi Báo Cáo'}
-              </button>
+              <>
+                <button onClick={handleSubmit} disabled={isSubmitting}
+                  style={{
+                    width: '100%', padding: '12px', borderRadius: '10px', border: 'none',
+                    background: 'linear-gradient(135deg, #DC2626, #F97316)', color: '#fff',
+                    fontWeight: 700, fontSize: '14px', cursor: 'pointer',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                    transition: 'all 0.3s ease', opacity: isSubmitting ? 0.7 : 1,
+                  }}
+                >
+                  <Send size={16} />
+                  {isSubmitting ? 'Đang gửi...' : 'Gửi Báo Cáo'}
+                </button>
+
+                {/* Test Menu Panel */}
+                <div style={{
+                  marginTop: '16px', padding: '12px', borderRadius: '10px',
+                  border: '1px dashed #9CA3AF', background: '#F3F4F6'
+                }}>
+                  <div style={{ fontSize: '11px', fontWeight: 700, color: '#4B5563', marginBottom: '8px', textTransform: 'uppercase' }}>
+                    🛠 Test Menu
+                  </div>
+                  <button onClick={handleTestMenuBypass} disabled={isSubmitting}
+                    style={{
+                      width: '100%', padding: '10px', borderRadius: '8px', border: 'none',
+                      background: '#1F2937', color: '#F9FAFB',
+                      fontWeight: 600, fontSize: '13px', cursor: 'pointer',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
+                      transition: 'all 0.2s ease', opacity: isSubmitting ? 0.7 : 1,
+                    }}
+                  >
+                    ⚡ Tạo nhanh Obstacle (Bypass)
+                  </button>
+                </div>
+              </>
             )}
           </div>
         </motion.div>

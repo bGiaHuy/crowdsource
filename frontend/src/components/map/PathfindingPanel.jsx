@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { MapPin, Navigation, X, Route, MousePointerClick, ChevronDown, ChevronUp, Clock, Ruler } from 'lucide-react';
+import { MapPin, Navigation, X, Route, MousePointerClick, ChevronDown, ChevronUp, Clock, Ruler, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import useAppStore from '../../stores/useAppStore';
 
@@ -27,7 +27,9 @@ const PathfindingPanel = () => {
     routeMetadata, routeError, routeStart, routeEnd,
     setRoutePoints, clearRoute, isCalculatingRoute, setIsCalculatingRoute,
     routingSelectionMode, setRoutingSelectionMode, incrementRouteTrigger,
-    preferElevator, setPreferElevator
+    preferElevator, setPreferElevator,
+    avoidObstacles, setAvoidObstacles,
+    activeObstacles
   } = useAppStore();
 
   const [startQuery, setStartQuery] = useState('');
@@ -36,7 +38,8 @@ const PathfindingPanel = () => {
   const [endResults, setEndResults] = useState([]);
   const [allMapItems, setAllMapItems] = useState([]);
   const isMobile = useIsMobile();
-  const [isExpanded, setIsExpanded] = useState(!isMobile);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const [showWarningModal, setShowWarningModal] = useState(false);
   const panelRef = useRef(null);
 
   // Sync expanded state with isMobile
@@ -153,9 +156,11 @@ const PathfindingPanel = () => {
 
   const selectStart = (item) => {
     const floor = item.floor_id;
+    const hasObstacle = activeObstacles?.some(o => o.target_item_id === item.item_id || (item.room_code && o.target_item_id === item.room_code));
+    const labelWarning = hasObstacle ? ' ⚠️' : '';
     const newStart = {
       roomCode: item.room_code,
-      label: `${item.room_code || item.name} - ${item.floor_name}`,
+      label: `${item.room_code || item.name} - ${item.floor_name}${labelWarning}`,
       itemId: item.item_id || item.id,
       bboxCenter: item.bbox ? {
         x: item.bbox.min_x + (item.bbox.max_x - item.bbox.min_x)/2,
@@ -170,9 +175,11 @@ const PathfindingPanel = () => {
   };
 
   const selectEnd = (item) => {
+    const hasObstacle = activeObstacles?.some(o => o.target_item_id === item.item_id || (item.room_code && o.target_item_id === item.room_code));
+    const labelWarning = hasObstacle ? ' ⚠️' : '';
     setRoutePoints(routeStart, {
       roomCode: item.room_code,
-      label: `${item.room_code || item.name} - ${item.floor_name}`,
+      label: `${item.room_code || item.name} - ${item.floor_name}${labelWarning}`,
       itemId: item.item_id || item.id,
       bboxCenter: item.bbox ? {
         x: item.bbox.min_x + (item.bbox.max_x - item.bbox.min_x)/2,
@@ -186,6 +193,23 @@ const PathfindingPanel = () => {
 
   const handleFindPath = () => {
     if (!routeStart || !routeEnd) return;
+
+    if (routeEnd.itemId || routeEnd.roomCode) {
+      const hasObstacle = activeObstacles?.some(o => 
+        o.target_item_id === routeEnd.itemId || 
+        (routeEnd.roomCode && o.target_item_id === routeEnd.roomCode)
+      );
+      if (hasObstacle) {
+        setShowWarningModal(true);
+        return;
+      }
+    }
+
+    proceedFindPath();
+  };
+
+  const proceedFindPath = () => {
+    setShowWarningModal(false);
     useAppStore.setState({ routePath: [], routeMetadata: null, routeError: null });
     setIsCalculatingRoute(true);
     incrementRouteTrigger();
@@ -273,7 +297,74 @@ const PathfindingPanel = () => {
               isMobile={isMobile}
               preferElevator={preferElevator}
               setPreferElevator={setPreferElevator}
+              avoidObstacles={avoidObstacles}
+              setAvoidObstacles={setAvoidObstacles}
+              incrementRouteTrigger={incrementRouteTrigger}
+              activeObstacles={activeObstacles}
             />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Warning Modal */}
+      <AnimatePresence>
+        {showWarningModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{
+              position: 'fixed', inset: 0, zIndex: 9999,
+              backgroundColor: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: '20px', left: 0, top: 0
+            }}
+            onClick={() => setShowWarningModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, y: 20 }}
+              animate={{ scale: 1, y: 0 }}
+              exit={{ scale: 0.95, y: 20 }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              style={{
+                backgroundColor: 'white', borderRadius: '20px', padding: '24px',
+                maxWidth: '380px', width: '100%', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.25)',
+                display: 'flex', flexDirection: 'column', gap: '16px', textAlign: 'center'
+              }}
+              onClick={e => e.stopPropagation()}
+            >
+              <div style={{ margin: '0 auto', width: 56, height: 56, borderRadius: '28px', backgroundColor: '#FEF3C7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#D97706' }}>
+                <AlertTriangle size={28} />
+              </div>
+              <div>
+                <h3 style={{ margin: '0 0 8px 0', fontSize: '18px', fontWeight: 700, color: '#111827', fontFamily: 'var(--font-sans)' }}>Đích đến có sự cố</h3>
+                <p style={{ margin: 0, fontSize: '14px', color: '#4B5563', lineHeight: 1.5, fontFamily: 'var(--font-sans)' }}>
+                  Phòng đích hiện tại đang có thông báo sự cố (bị khóa, sửa chữa...) và có thể không khả dụng! Bạn có chắc chắn muốn tìm đường tới đó không?
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
+                <button
+                  onClick={() => setShowWarningModal(false)}
+                  style={{
+                    flex: 1, padding: '12px', borderRadius: '12px', border: 'none',
+                    backgroundColor: '#F3F4F6', color: '#374151', fontWeight: 600, cursor: 'pointer',
+                    fontFamily: 'var(--font-sans)', transition: 'background-color 0.2s'
+                  }}
+                  onMouseEnter={e => e.target.style.backgroundColor = '#E5E7EB'}
+                  onMouseLeave={e => e.target.style.backgroundColor = '#F3F4F6'}
+                >Hủy</button>
+                <button
+                  onClick={proceedFindPath}
+                  style={{
+                    flex: 1, padding: '12px', borderRadius: '12px', border: 'none',
+                    backgroundColor: '#F59E0B', color: 'white', fontWeight: 600, cursor: 'pointer',
+                    fontFamily: 'var(--font-sans)', transition: 'background-color 0.2s'
+                  }}
+                  onMouseEnter={e => e.target.style.backgroundColor = '#D97706'}
+                  onMouseLeave={e => e.target.style.backgroundColor = '#F59E0B'}
+                >Tiếp tục</button>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -289,6 +380,8 @@ const PanelBody = ({
   routeMetadata, routeError, isCalculatingRoute,
   routingSelectionMode, setRoutingSelectionMode,
   isMobile, preferElevator, setPreferElevator,
+  avoidObstacles, setAvoidObstacles, incrementRouteTrigger,
+  activeObstacles
 }) => {
   const inputStyle = {
     border: 'none', background: 'transparent', width: '100%', outline: 'none',
@@ -349,24 +442,28 @@ const PanelBody = ({
             zIndex: 50, marginTop: '6px', maxHeight: '220px', overflowY: 'auto',
             boxShadow: '0 12px 40px rgba(0,0,0,0.18)',
           }}>
-            {startResults.map(item => (
-              <div
-                key={item.item_id}
-                onClick={() => selectStart(item)}
-                style={{
-                  padding: '12px', cursor: 'pointer',
-                  borderBottom: '1px solid var(--color-border)',
-                  fontSize: '13px', fontWeight: 500,
-                  minHeight: '44px', display: 'flex', alignItems: 'center',
-                }}
-                onTouchStart={(e) => e.currentTarget.style.backgroundColor = 'var(--color-muted)'}
-                onTouchEnd={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-muted)'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-              >
-                {item.room_code || item.name} ({item.floor_name})
-              </div>
-            ))}
+            {startResults.map(item => {
+              const hasObstacle = activeObstacles?.some(o => o.target_item_id === item.item_id || (item.room_code && o.target_item_id === item.room_code));
+              return (
+                <div
+                  key={item.item_id}
+                  onClick={() => selectStart(item)}
+                  style={{
+                    padding: '12px', cursor: 'pointer',
+                    borderBottom: '1px solid var(--color-border)',
+                    fontSize: '13px', fontWeight: 500,
+                    minHeight: '44px', display: 'flex', alignItems: 'center',
+                    color: hasObstacle ? '#F59E0B' : 'inherit'
+                  }}
+                  onTouchStart={(e) => e.currentTarget.style.backgroundColor = 'var(--color-muted)'}
+                  onTouchEnd={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-muted)'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  {item.room_code || item.name} ({item.floor_name}){hasObstacle ? ' ⚠️' : ''}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -428,24 +525,28 @@ const PanelBody = ({
             zIndex: 50, marginTop: '6px', maxHeight: '220px', overflowY: 'auto',
             boxShadow: '0 12px 40px rgba(0,0,0,0.18)',
           }}>
-            {endResults.map(item => (
-              <div
-                key={item.item_id}
-                onClick={() => selectEnd(item)}
-                style={{
-                  padding: '12px', cursor: 'pointer',
-                  borderBottom: '1px solid var(--color-border)',
-                  fontSize: '13px', fontWeight: 500,
-                  minHeight: '44px', display: 'flex', alignItems: 'center',
-                }}
-                onTouchStart={(e) => e.currentTarget.style.backgroundColor = 'var(--color-muted)'}
-                onTouchEnd={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-muted)'}
-                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
-              >
-                {item.room_code || item.name} ({item.floor_name})
-              </div>
-            ))}
+            {endResults.map(item => {
+              const hasObstacle = activeObstacles?.some(o => o.target_item_id === item.item_id || (item.room_code && o.target_item_id === item.room_code));
+              return (
+                <div
+                  key={item.item_id}
+                  onClick={() => selectEnd(item)}
+                  style={{
+                    padding: '12px', cursor: 'pointer',
+                    borderBottom: '1px solid var(--color-border)',
+                    fontSize: '13px', fontWeight: 500,
+                    minHeight: '44px', display: 'flex', alignItems: 'center',
+                    color: hasObstacle ? '#F59E0B' : 'inherit'
+                  }}
+                  onTouchStart={(e) => e.currentTarget.style.backgroundColor = 'var(--color-muted)'}
+                  onTouchEnd={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = 'var(--color-muted)'}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  {item.room_code || item.name} ({item.floor_name}){hasObstacle ? ' ⚠️' : ''}
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
@@ -461,6 +562,23 @@ const PanelBody = ({
         />
         <label htmlFor="preferElevator" style={{ fontSize: '14px', cursor: 'pointer', color: 'var(--color-foreground)', fontWeight: 500 }}>
           Ưu tiên đi thang máy
+        </label>
+      </div>
+
+      {/* Avoid Obstacles Checkbox */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 4px', marginBottom: '12px' }}>
+        <input 
+          type="checkbox" 
+          id="avoidObstacles" 
+          checked={avoidObstacles} 
+          onChange={(e) => {
+            setAvoidObstacles(e.target.checked);
+            if (routeStart && routeEnd) incrementRouteTrigger();
+          }} 
+          style={{ cursor: 'pointer', width: '16px', height: '16px', accentColor: 'var(--color-destructive)' }}
+        />
+        <label htmlFor="avoidObstacles" style={{ fontSize: '14px', cursor: 'pointer', color: 'var(--color-foreground)', fontWeight: 500 }}>
+          Né vật cản (Sự cố)
         </label>
       </div>
 
@@ -605,6 +723,7 @@ const PanelBody = ({
           </motion.div>
         )}
       </AnimatePresence>
+
     </div>
   );
 };

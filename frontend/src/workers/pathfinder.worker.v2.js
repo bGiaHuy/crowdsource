@@ -57,6 +57,8 @@ let cachedGridMap = new Map(); // floorId -> { grid: Uint8Array, width, height, 
 const PENALTY_COST = 2;
 let lastGridData = null;
 let disabledAccessPoints = new Set();
+let currentObstaclesList = [];
+let currentAvoidObstacles = true;
 
 function loadGrid(gridData) {
   lastGridData = gridData;
@@ -364,7 +366,35 @@ function findHierarchicalPath(startPt, endPt, preferElevator = false, startItemI
   const ey = (endPt.y / cs) | 0;
   
   if (startPt.floor === endPt.floor) {
-    const path = thetaStar(sx, sy, ex, ey, startFloor, startItemId, endItemId);
+    let path = null;
+
+    // CUSTOM RULE: If both points are on Floor 1 and AT LEAST ONE is NOT a specific item (custom click),
+    // ignore static walls (grass/buildings) and ONLY avoid dynamic obstacles.
+    if (startPt.floor === 1 && (!startItemId || !endItemId)) {
+      const openGrid = new Uint8Array(startFloor.width * startFloor.height);
+      if (currentAvoidObstacles !== false && currentObstaclesList.length > 0) {
+        for (const obs of currentObstaclesList) {
+          if (obs.type === 'area' && obs.floor === 1) {
+            const gx = Math.floor(obs.x / cs);
+            const gy = Math.floor(obs.y / cs);
+            const gr = Math.max(1, Math.ceil(obs.radius / cs));
+            for (let dy = -gr; dy <= gr; dy++) {
+              for (let dx = -gr; dx <= gr; dx++) {
+                const nx = gx + dx, ny = gy + dy;
+                if (nx >= 0 && nx < startFloor.width && ny >= 0 && ny < startFloor.height) {
+                  openGrid[ny * startFloor.width + nx] = 1;
+                }
+              }
+            }
+          }
+        }
+      }
+      const customFloor = { ...startFloor, grid: openGrid };
+      path = thetaStar(sx, sy, ex, ey, customFloor, null, null);
+    } else {
+      path = thetaStar(sx, sy, ex, ey, startFloor, startItemId, endItemId);
+    }
+    
     if (!path) return null;
     
     const finalNodes = [];
@@ -540,7 +570,7 @@ self.onmessage = function (e) {
   }
 
   if (type === 'CALCULATE_ROUTE') {
-    const { gridData, startBboxCenter, endBboxCenter, startItemId, endItemId, preferElevator, obstacles } = payload;
+    const { gridData, startBboxCenter, endBboxCenter, startItemId, endItemId, preferElevator, obstacles, avoidObstacles } = payload;
     if (!startBboxCenter || !endBboxCenter) {
       self.postMessage({ type: 'ROUTE_ERROR', payload: 'Thiếu điểm xuất phát hoặc điểm đích' });
       return;
@@ -552,10 +582,16 @@ self.onmessage = function (e) {
         return;
       }
     }
-    if (obstacles && obstacles.length > 0 && lastGridData) {
+    if (avoidObstacles !== false && obstacles && obstacles.length > 0 && lastGridData) {
       loadGrid(lastGridData);
       applyObstacles(obstacles);
+    } else if (lastGridData) {
+      loadGrid(lastGridData); // Ensure clean grid
+      disabledAccessPoints.clear(); // Ensure disabled access points are also cleared
     }
+    currentAvoidObstacles = avoidObstacles;
+    currentObstaclesList = obstacles || [];
+
     try {
       const t0 = performance.now();
       const result = findHierarchicalPath(startBboxCenter, endBboxCenter, preferElevator, startItemId, endItemId);
@@ -615,7 +651,6 @@ function applyObstacles(obstacles) {
       const gr = Math.max(1, Math.ceil(obs.radius / cs));
       for (let dy = -gr; dy <= gr; dy++) {
         for (let dx = -gr; dx <= gr; dx++) {
-          if (dx*dx + dy*dy > gr*gr) continue;
           const nx = gx + dx, ny = gy + dy;
           if (nx >= 0 && nx < floorData.width && ny >= 0 && ny < floorData.height) {
             floorData.grid[ny * floorData.width + nx] = 1;
