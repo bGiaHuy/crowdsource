@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import useAppStore from '../../stores/useAppStore';
-import { ZoomIn, ZoomOut, RefreshCw, Box, Layers, X, Move, RotateCw } from 'lucide-react';
+import { ZoomIn, ZoomOut, RefreshCw, Box, Layers, X, Move, RotateCw, AlertTriangle } from 'lucide-react';
+import ObstacleMarkers from './ObstacleMarkers';
+import ReportPanel from './ReportPanel';
 
 /* ── Inline SVG Icons for Legend ── */
 const StairSvg = ({ color = '#7C3AED' }) => (
@@ -68,7 +70,7 @@ const LEGEND_ITEMS = [
 ];
 
 const DraftImageMap = () => {
-  const { currentFloorId, draftDeltaData, selectedMapItem, setSelectedMapItem, highlightedRoomCode, routePath, routeStart, routeEnd, clickPoint, setCurrentFloorId } = useAppStore();
+  const { currentFloorId, draftDeltaData, selectedMapItem, setSelectedMapItem, highlightedRoomCode, routePath, routeStart, routeEnd, clickPoint, setCurrentFloorId, activeObstacles, isReportMode, setReportMode, reportStep, pendingReport, setPendingReport, setReportStep, clearPendingReport } = useAppStore();
   const [currentFloor, setCurrentFloor] = useState(null);
   
   // Viewport states
@@ -92,7 +94,6 @@ const DraftImageMap = () => {
 
   const handleSvgClick = (e, svgElement, floorId) => {
     if (!svgElement) return;
-    // Don't register click if we actually dragged the map
     if (hasDragged.current) return;
     
     const pt = svgElement.createSVGPoint();
@@ -101,6 +102,17 @@ const DraftImageMap = () => {
     const ctm = svgElement.getScreenCTM();
     if (!ctm) return;
     const svgP = pt.matrixTransform(ctm.inverse());
+    
+    // Report mode: area type click
+    const store = useAppStore.getState();
+    if (store.isReportMode && store.reportStep === 'select_target' && store.pendingReport) {
+      const isArea = ['wet_floor','construction','debris','other'].includes(store.pendingReport.obstacle_type);
+      if (isArea) {
+        store.setPendingReport({ ...store.pendingReport, x: svgP.x, y: svgP.y, radius: 60, floor: floorId });
+        store.setReportStep('confirm');
+        return;
+      }
+    }
     
     useAppStore.getState().handleMapClick(svgP.x, svgP.y, floorId);
   };
@@ -418,6 +430,30 @@ const DraftImageMap = () => {
         >
           <Box size={18}/>
         </button>
+
+        <div style={{ height: '1px', backgroundColor: 'rgba(0,0,0,0.08)', margin: '2px 0' }} />
+
+        {/* Report Mode Toggle */}
+        <button
+          onClick={() => {
+            if (isReportMode) { clearPendingReport(); }
+            else { setReportMode(true); setReportStep('select_type'); }
+          }}
+          title={isReportMode ? 'Hủy báo cáo' : 'Báo cáo sự cố'}
+          style={{
+            width: '38px', height: '38px',
+            backgroundColor: isReportMode ? '#DC2626' : 'rgba(255,255,255,0.92)',
+            backdropFilter: 'blur(8px)',
+            border: `1px solid ${isReportMode ? '#DC2626' : 'rgba(0,0,0,0.08)'}`,
+            borderRadius: '10px', cursor: 'pointer',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: isReportMode ? 'white' : '#DC2626',
+            boxShadow: isReportMode ? '0 4px 14px rgba(220,38,38,0.35)' : '0 2px 8px rgba(0,0,0,0.08)',
+            transition: 'all 0.2s ease',
+          }}
+        >
+          <AlertTriangle size={18}/>
+        </button>
       </div>
 
       {/* ── Legend Panel (Desktop — always visible) ── */}
@@ -691,7 +727,22 @@ const DraftImageMap = () => {
                         if (isInteractive) {
                           e.stopPropagation();
                           
-                          const routingMode = useAppStore.getState().routingSelectionMode;
+                          const store = useAppStore.getState();
+                          
+                          // Report mode: targeted type → chọn item này
+                          if (store.isReportMode && store.reportStep === 'select_target' && store.pendingReport) {
+                            const isTargeted = ['elevator_broken','stairs_locked','room_locked'].includes(store.pendingReport.obstacle_type);
+                            if (isTargeted) {
+                              const typeMap = { elevator_broken: 'elevator', stairs_locked: 'stair', room_locked: 'room' };
+                              const expected = typeMap[store.pendingReport.obstacle_type];
+                              if (expected && item.item_type !== expected) return;
+                              store.setPendingReport({ ...store.pendingReport, target_item_id: item.item_id, floor: floor.floor || floor.id });
+                              store.setReportStep('confirm');
+                              return;
+                            }
+                          }
+                          
+                          const routingMode = store.routingSelectionMode;
                           if (routingMode) {
                             const point = {
                               type: 'room',
@@ -701,14 +752,13 @@ const DraftImageMap = () => {
                               label: item.display_name || item.room_code || 'Phòng'
                             };
                             if (routingMode === 'start') {
-                              useAppStore.getState().setRouteStart(point);
+                              store.setRouteStart(point);
                             } else {
-                              useAppStore.getState().setRouteEnd(point);
+                              store.setRouteEnd(point);
                             }
-                            useAppStore.getState().setRoutingSelectionMode(null);
+                            store.setRoutingSelectionMode(null);
                           } else {
                             setSelectedMapItem(item);
-                            // Store click position relative to container for info card
                             if (containerRef.current) {
                               const rect = containerRef.current.getBoundingClientRect();
                               setClickPos({ x: e.clientX - rect.left, y: e.clientY - rect.top });
@@ -1094,6 +1144,32 @@ const DraftImageMap = () => {
                     </g>
                   </g>
                 )}
+                {/* Obstacle Markers Overlay */}
+                <ObstacleMarkers
+                  obstacles={activeObstacles.filter(o => o.floor === (floor.floor || floor.id))}
+                  draftFloorData={floor}
+                  currentFloor={floor.floor || floor.id}
+                  onUpvote={async (id) => {
+                    try {
+                      const { upvoteObstacle } = await import('../../services/api');
+                      const res = await upvoteObstacle(id);
+                      const obs = useAppStore.getState().activeObstacles.map(o => o.id === id ? { ...o, upvotes: res.data.upvotes, downvotes: res.data.downvotes } : o);
+                      useAppStore.getState().setActiveObstacles(obs);
+                    } catch (err) { console.error('Upvote failed:', err); }
+                  }}
+                  onDownvote={async (id) => {
+                    try {
+                      const { downvoteObstacle } = await import('../../services/api');
+                      const res = await downvoteObstacle(id);
+                      if (res.data.auto_removed) {
+                        useAppStore.getState().setActiveObstacles(useAppStore.getState().activeObstacles.filter(o => o.id !== id));
+                      } else {
+                        const obs = useAppStore.getState().activeObstacles.map(o => o.id === id ? { ...o, upvotes: res.data.upvotes, downvotes: res.data.downvotes } : o);
+                        useAppStore.getState().setActiveObstacles(obs);
+                      }
+                    } catch (err) { console.error('Downvote failed:', err); }
+                  }}
+                />
               </svg>
             );
           })}
@@ -1324,6 +1400,28 @@ const DraftImageMap = () => {
         .map-item rect { cursor: inherit; }
         .map-item:hover text { fill: #111827 !important; }
       `}</style>
+
+      {/* Report Panel */}
+      <ReportPanel />
+
+      {/* Report Mode Banner */}
+      {reportStep === 'select_target' && (
+        <div style={{
+          position: 'absolute', top: '60px', left: '50%', transform: 'translateX(-50%)',
+          zIndex: 1200, padding: '10px 20px', borderRadius: '12px',
+          background: 'rgba(220, 38, 38, 0.95)', color: 'white',
+          fontSize: '13px', fontWeight: 600, fontFamily: 'var(--font-sans)',
+          boxShadow: '0 4px 16px rgba(220,38,38,0.3)',
+          display: 'flex', alignItems: 'center', gap: '8px',
+          backdropFilter: 'blur(8px)',
+          animation: 'slideUpIn 0.3s ease',
+        }}>
+          <AlertTriangle size={16} />
+          {pendingReport && ['elevator_broken','stairs_locked','room_locked'].includes(pendingReport.obstacle_type)
+            ? 'Click vào đối tượng trên bản đồ'
+            : 'Click vào vị trí vật cản trên bản đồ'}
+        </div>
+      )}
     </div>
   );
 };

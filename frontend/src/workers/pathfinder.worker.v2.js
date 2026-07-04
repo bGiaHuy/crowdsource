@@ -55,8 +55,11 @@ class MinHeap {
 
 let cachedGridMap = new Map(); // floorId -> { grid: Uint8Array, width, height, cell_size, access_points: Map }
 const PENALTY_COST = 2;
+let lastGridData = null;
+let disabledAccessPoints = new Set();
 
 function loadGrid(gridData) {
+  lastGridData = gridData;
   cachedGridMap.clear();
   const cellSize = gridData.cell_size;
   
@@ -112,6 +115,7 @@ function loadGrid(gridData) {
 }
 
 function getNearestWalkable(cx, cy, floorData) {
+
   const { grid, width, height } = floorData;
   if (cx >= 0 && cx < width && cy >= 0 && cy < height) {
     if (grid[cy * width + cx] !== 1) return { x: cx, y: cy };
@@ -402,6 +406,7 @@ function findHierarchicalPath(startPt, endPt, preferElevator = false, startItemI
     
     for (const [stairId, stair] of startFloor.access_points.entries()) {
       if (stair.item_type !== 'stair' && stair.item_type !== 'elevator') continue;
+      if (disabledAccessPoints.has(stairId)) continue;
       const stx = stair.points[0].x;
       const sty = stair.points[0].y;
       
@@ -417,6 +422,7 @@ function findHierarchicalPath(startPt, endPt, preferElevator = false, startItemI
       let minDist = Infinity;
       for (const [eStairId, eStair] of endFloor.access_points.entries()) {
         if (eStair.item_type !== stair.item_type) continue;
+        if (disabledAccessPoints.has(eStairId)) continue;
         const dist = heuristic(stair.points[0].x, stair.points[0].y, eStair.points[0].x, eStair.points[0].y);
         if (dist < minDist && dist < 1600) {
           minDist = dist;
@@ -449,6 +455,7 @@ function findHierarchicalPath(startPt, endPt, preferElevator = false, startItemI
     
     for (const [eStairId, eStair] of endFloor.access_points.entries()) {
       if (eStair.item_type !== startStair.item_type) continue;
+      if (disabledAccessPoints.has(eStairId)) continue;
       const dist = heuristic(startStair.points[0].x, startStair.points[0].y, eStair.points[0].x, eStair.points[0].y);
       if (dist < bestMinDist && dist < 1600) { // match Phase 1 threshold
         bestMinDist = dist;
@@ -478,6 +485,7 @@ function findHierarchicalPath(startPt, endPt, preferElevator = false, startItemI
         if (currFloorData) {
             for (const [id, ap] of currFloorData.access_points.entries()) {
                 if (ap.item_type !== startStair.item_type) continue;
+                if (disabledAccessPoints.has(id)) continue;
                 const dist = heuristic(startStair.points[0].x, startStair.points[0].y, ap.points[0].x, ap.points[0].y);
                 if (dist < minDist && dist < 1600) { // match Phase 1 threshold
                     minDist = dist;
@@ -522,8 +530,17 @@ function generateInstructions(nodes) {
 
 self.onmessage = function (e) {
   const { type, payload } = e.data;
+
+  if (type === 'UPDATE_OBSTACLES') {
+    if (lastGridData) {
+      loadGrid(lastGridData);
+      applyObstacles(payload.obstacles);
+    }
+    return;
+  }
+
   if (type === 'CALCULATE_ROUTE') {
-    const { gridData, startBboxCenter, endBboxCenter, startItemId, endItemId, preferElevator } = payload;
+    const { gridData, startBboxCenter, endBboxCenter, startItemId, endItemId, preferElevator, obstacles } = payload;
     if (!startBboxCenter || !endBboxCenter) {
       self.postMessage({ type: 'ROUTE_ERROR', payload: 'Thiếu điểm xuất phát hoặc điểm đích' });
       return;
@@ -534,6 +551,10 @@ self.onmessage = function (e) {
         self.postMessage({ type: 'ROUTE_ERROR', payload: 'Chưa có dữ liệu lưới' });
         return;
       }
+    }
+    if (obstacles && obstacles.length > 0 && lastGridData) {
+      loadGrid(lastGridData);
+      applyObstacles(obstacles);
     }
     try {
       const t0 = performance.now();
@@ -566,10 +587,41 @@ self.onmessage = function (e) {
           }
         });
       } else {
-        self.postMessage({ type: 'ROUTE_ERROR', payload: 'Không tìm thấy đường đi an toàn' });
+        self.postMessage({
+          type: 'ROUTE_ERROR',
+          payload: (obstacles && obstacles.length > 0)
+            ? 'Không tìm được đường đi do vật cản. Vui lòng thử lộ trình khác.'
+            : 'Không tìm thấy đường đi an toàn'
+        });
       }
     } catch (error) {
       self.postMessage({ type: 'ROUTE_ERROR', payload: error.message });
     }
   }
 };
+
+function applyObstacles(obstacles) {
+  disabledAccessPoints.clear();
+  if (!obstacles || obstacles.length === 0) return;
+  for (const obs of obstacles) {
+    if (obs.type === 'targeted') {
+      disabledAccessPoints.add(obs.target_item_id);
+    } else if (obs.type === 'area') {
+      const floorData = cachedGridMap.get(obs.floor);
+      if (!floorData) continue;
+      const cs = floorData.cell_size;
+      const gx = Math.floor(obs.x / cs);
+      const gy = Math.floor(obs.y / cs);
+      const gr = Math.max(1, Math.ceil(obs.radius / cs));
+      for (let dy = -gr; dy <= gr; dy++) {
+        for (let dx = -gr; dx <= gr; dx++) {
+          if (dx*dx + dy*dy > gr*gr) continue;
+          const nx = gx + dx, ny = gy + dy;
+          if (nx >= 0 && nx < floorData.width && ny >= 0 && ny < floorData.height) {
+            floorData.grid[ny * floorData.width + nx] = 1;
+          }
+        }
+      }
+    }
+  }
+}

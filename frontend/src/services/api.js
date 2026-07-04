@@ -23,4 +23,11 @@ export const sendChatMessage = async (messages, userId) => {
   });
 };
 
+// ── Crowdsourcing Report ──
+export const submitReport = (data) => api.post('/reports', data);
+export const getActiveObstacles = (buildingCode) =>
+  api.get(`/obstacles?building=${buildingCode}&status=active`);
+export const upvoteObstacle = (id) => api.post(`/obstacles/${id}/upvote`);
+export const downvoteObstacle = (id) => api.post(`/obstacles/${id}/downvote`);
+
 export default api;

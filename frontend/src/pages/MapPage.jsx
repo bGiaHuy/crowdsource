@@ -5,6 +5,7 @@ import SearchBar from '../components/map/SearchBar';
 import PathfindingPanel from '../components/map/PathfindingPanel';
 import useAppStore from '../stores/useAppStore';
 import DraftImageMap from '../components/map/DraftImageMap';
+import { getActiveObstacles } from '../services/api';
 
 const MapPage = () => {
   const {
@@ -15,7 +16,8 @@ const MapPage = () => {
     isDeltaDraftMode, setDeltaDraftMode, setDraftDeltaData,
     navGridData, setNavGridData,
     setRouteMetadata, setRouteError,
-    routeTriggerKey, setIsCalculatingRoute, preferElevator
+    routeTriggerKey, setIsCalculatingRoute, preferElevator,
+    activeObstacles, setActiveObstacles
   } = useAppStore();
   const workerRef = useRef(null);
 
@@ -50,9 +52,13 @@ const MapPage = () => {
   // ── Fire worker when user presses "Tìm đường" ─────────────────────────────
   useEffect(() => {
     if (routeTriggerKey === 0) return;
-    const { routeStart: rs, routeEnd: re } = useAppStore.getState();
+    const { routeStart: rs, routeEnd: re, activeObstacles: obs } = useAppStore.getState();
     if (rs && re && navGridData && workerRef.current) {
       setIsCalculatingRoute(true);
+      const obstacles = (obs || []).filter(o => o.status === 'active').map(o => {
+        if (o.target_item_id) return { type: 'targeted', obstacle_type: o.obstacle_type, target_item_id: o.target_item_id, floor: o.floor };
+        return { type: 'area', floor: o.floor, x: o.x, y: o.y, radius: o.radius || 60 };
+      });
       workerRef.current.postMessage({
         type: 'CALCULATE_ROUTE',
         payload: {
@@ -63,7 +69,8 @@ const MapPage = () => {
           endRoomCode: re.roomCode,
           endItemId: re.itemId,
           endBboxCenter: re.bboxCenter,
-          preferElevator
+          preferElevator,
+          obstacles
         }
       });
     } else if (rs && re && graphData && workerRef.current) {
@@ -151,6 +158,31 @@ const MapPage = () => {
     };
     fetchItems();
   }, [currentFloorId, setMapItems, isDeltaDraftMode]);
+
+  // ── Fetch active obstacles + poll every 30s ──────────────────────────────
+  useEffect(() => {
+    if (!isDeltaDraftMode) return;
+    const fetchObstacles = async () => {
+      try {
+        const res = await getActiveObstacles(currentBuilding || 'DELTA');
+        if (res.data?.obstacles) {
+          setActiveObstacles(res.data.obstacles);
+          if (workerRef.current && navGridData) {
+            const workerObstacles = res.data.obstacles.map(o => {
+              if (o.target_item_id) {
+                return { type: 'targeted', obstacle_type: o.obstacle_type, target_item_id: o.target_item_id, floor: o.floor };
+              }
+              return { type: 'area', floor: o.floor, x: o.x, y: o.y, radius: o.radius || 60 };
+            });
+            workerRef.current.postMessage({ type: 'UPDATE_OBSTACLES', payload: { obstacles: workerObstacles } });
+          }
+        }
+      } catch (err) { console.warn('Obstacles fetch failed:', err.message); }
+    };
+    fetchObstacles();
+    const interval = setInterval(fetchObstacles, 30000);
+    return () => clearInterval(interval);
+  }, [isDeltaDraftMode, currentBuilding, navGridData, setActiveObstacles]);
 
   return (
     <div style={{

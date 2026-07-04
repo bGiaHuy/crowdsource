@@ -191,3 +191,53 @@ class RoomMetadata(Base):
     review_status = Column(String(20))
     published = Column(Boolean, default=False)
 
+
+# ─── Report (Báo cáo sự cố từ sinh viên) ────────────────
+class Report(Base):
+    __tablename__ = "reports"
+
+    id = Column(Integer, primary_key=True, index=True)
+    building_code = Column(String(20), nullable=False, index=True)
+    floor = Column(Integer, nullable=False)
+    obstacle_type = Column(String(50), nullable=False)
+    # Targeted types: item_id cụ thể (elevator, stair, room)
+    target_item_id = Column(String(200), nullable=True)
+    # Area types: tọa độ pixel + bán kính
+    x = Column(Float, nullable=True)
+    y = Column(Float, nullable=True)
+    radius = Column(Float, nullable=True)
+    description = Column(Text, default="")
+    reporter_id = Column(String(100), nullable=True)
+    status = Column(String(20), default="pending", index=True)  # pending | aggregated | dismissed
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+
+    __table_args__ = (
+        Index("ix_reports_building_type", "building_code", "obstacle_type"),
+    )
+
+
+# ─── Obstacle (Vật cản trên bản đồ) ─────────────────────
+class Obstacle(Base):
+    __tablename__ = "obstacles"
+
+    id = Column(Integer, primary_key=True, index=True)
+    building_code = Column(String(20), nullable=False, index=True)
+    floor = Column(Integer, nullable=False)
+    obstacle_type = Column(String(50), nullable=False)
+    target_item_id = Column(String(200), nullable=True)
+    x = Column(Float, nullable=True)
+    y = Column(Float, nullable=True)
+    radius = Column(Float, nullable=True)
+    source = Column(String(20), default="auto")  # auto | admin
+    status = Column(String(20), default="active", index=True)  # active | confirmed | removed
+    upvotes = Column(Integer, default=0)
+    downvotes = Column(Integer, default=0)
+    description = Column(Text, default="")
+    confirmed_by = Column(String(100), nullable=True)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    removed_at = Column(DateTime, nullable=True)
+
+    __table_args__ = (
+        Index("ix_obstacles_building_status", "building_code", "status"),
+    )
+

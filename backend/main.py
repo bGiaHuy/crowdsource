@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from config.settings import get_settings
-from routers import map_router, chat_router, search_router
+from routers import map_router, chat_router, search_router, report_router, obstacle_router
 from middlewares.auth_middleware import SupabaseAuthMiddleware
 settings = get_settings()
 
@@ -27,6 +27,8 @@ app.add_middleware(SupabaseAuthMiddleware)
 app.include_router(map_router.router)
 app.include_router(chat_router.router)
 app.include_router(search_router.router)
+app.include_router(report_router.router)
+app.include_router(obstacle_router.router)
 
 @app.get("/")
 async def root():

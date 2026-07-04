@@ -96,6 +96,20 @@ const useAppStore = create(
       clearChatMessages: () => set({ chatMessages: [] }),
       isChatOpen: false,
       toggleChat: () => set((state) => ({ isChatOpen: !state.isChatOpen })),
+
+      // ── Crowdsourcing Report ──
+      activeObstacles: [],
+      setActiveObstacles: (list) => set({ activeObstacles: list }),
+
+      isReportMode: false,
+      setReportMode: (val) => set({ isReportMode: val }),
+
+      reportStep: null,  // 'select_type' | 'select_target' | 'confirm'
+      setReportStep: (step) => set({ reportStep: step }),
+
+      pendingReport: null,  // { obstacle_type, target_item_id?, x?, y?, radius?, floor }
+      setPendingReport: (data) => set({ pendingReport: data }),
+      clearPendingReport: () => set({ pendingReport: null, reportStep: null, isReportMode: false }),
     }),
     {
       name: 'fptu-student-guide-storage',
