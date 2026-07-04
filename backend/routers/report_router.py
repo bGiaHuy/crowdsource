@@ -40,9 +40,12 @@ async def create_report(
 
     # Check auto-create obstacle
     service = ObstacleService(db)
-    await service.check_auto_create(report)
+    created_obstacle = await service.check_auto_create(report)
 
-    return report
+    # Build response with obstacle_created flag
+    response = ReportResponse.model_validate(report)
+    response.obstacle_created = created_obstacle is not None
+    return response
 
 
 @router.get("", response_model=ReportListResponse)

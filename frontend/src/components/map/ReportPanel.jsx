@@ -39,7 +39,7 @@ const panelWrapperStyle = {
 
 const panelStyle = {
   pointerEvents: 'auto',
-  width: '360px',
+  width: '300px',
   maxWidth: '90vw',
   background: 'rgba(255, 255, 255, 0.95)',
   backdropFilter: 'blur(20px)',
@@ -47,7 +47,7 @@ const panelStyle = {
   borderRadius: '16px',
   border: '1px solid rgba(255, 255, 255, 0.6)',
   boxShadow: '0 8px 32px rgba(0, 0, 0, 0.15), 0 0 0 1px rgba(0,0,0,0.05)',
-  padding: '20px',
+  padding: '14px',
   fontFamily: 'var(--font-sans)',
   animation: 'slideUpIn 0.25s ease',
 };
@@ -61,7 +61,7 @@ const ReportPanel = () => {
 
   const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [submitResult, setSubmitResult] = useState(null); // null | 'success' | 'error' | 'obstacle_created'
 
   // Chỉ hiện ở bước select_type hoặc confirm
   if (!reportStep || reportStep === 'select_target') return null;
@@ -75,7 +75,7 @@ const ReportPanel = () => {
     if (!pendingReport) return;
     setIsSubmitting(true);
     try {
-      await submitReport({
+      const res = await submitReport({
         building_code: 'DELTA',
         floor: pendingReport.floor || currentFloorId,
         obstacle_type: pendingReport.obstacle_type,
@@ -85,14 +85,30 @@ const ReportPanel = () => {
         radius: pendingReport.radius || null,
         description: description.trim(),
       });
-      setSubmitSuccess(true);
+      // Kiểm tra nếu response có obstacle_created
+      const obstacleCreated = res.data?.obstacle_created;
+      setSubmitResult(obstacleCreated ? 'obstacle_created' : 'success');
+      
+      // Nếu obstacle được tạo, re-fetch obstacles ngay
+      if (obstacleCreated) {
+        try {
+          const { getActiveObstacles } = await import('../../services/api');
+          const obsRes = await getActiveObstacles('DELTA');
+          if (obsRes.data?.obstacles) {
+            useAppStore.getState().setActiveObstacles(obsRes.data.obstacles);
+          }
+        } catch (_) { /* ignore */ }
+      }
+      
       setTimeout(() => {
         clearPendingReport();
         setDescription('');
-        setSubmitSuccess(false);
-      }, 1500);
+        setSubmitResult(null);
+      }, 2500);
     } catch (err) {
       console.error('Report failed:', err);
+      setSubmitResult('error');
+      setTimeout(() => setSubmitResult(null), 3000);
     } finally {
       setIsSubmitting(false);
     }
@@ -110,6 +126,7 @@ const ReportPanel = () => {
           drag
           dragMomentum={false}
           whileDrag={{ cursor: 'grabbing' }}
+          onPointerDown={(e) => e.stopPropagation()}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', cursor: 'grab' }} className="drag-handle">
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -125,12 +142,12 @@ const ReportPanel = () => {
           <div style={{ fontSize: '11px', fontWeight: 700, color: '#6B7280', letterSpacing: '0.5px', marginBottom: '8px', textTransform: 'uppercase' }}>
             Chọn đối tượng cụ thể
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '16px' }} onPointerDown={(e) => e.stopPropagation()}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '12px' }}>
             {TARGETED_TYPES.map(t => (
               <button key={t.value} onClick={() => handleSelectType(t.value)} style={{
-                padding: '12px 14px', borderRadius: '12px', cursor: 'pointer',
+                padding: '10px 12px', borderRadius: '12px', cursor: 'pointer',
                 border: '1px solid rgba(0,0,0,0.08)', background: 'rgba(255,255,255,0.7)',
-                display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', fontWeight: 500,
+                display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 500,
                 transition: 'all 0.15s ease', textAlign: 'left',
               }}
               onMouseEnter={e => { e.currentTarget.style.background = `${t.color}10`; e.currentTarget.style.borderColor = `${t.color}40`; }}
@@ -146,12 +163,12 @@ const ReportPanel = () => {
           <div style={{ fontSize: '11px', fontWeight: 700, color: '#6B7280', letterSpacing: '0.5px', marginBottom: '8px', textTransform: 'uppercase' }}>
             Chọn vùng ảnh hưởng
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }} onPointerDown={(e) => e.stopPropagation()}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
             {AREA_TYPES.map(t => (
               <button key={t.value} onClick={() => handleSelectType(t.value)} style={{
-                padding: '12px 14px', borderRadius: '12px', cursor: 'pointer',
+                padding: '10px 12px', borderRadius: '12px', cursor: 'pointer',
                 border: '1px solid rgba(0,0,0,0.08)', background: 'rgba(255,255,255,0.7)',
-                display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', fontWeight: 500,
+                display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 500,
                 transition: 'all 0.15s ease', textAlign: 'left',
               }}
               onMouseEnter={e => { e.currentTarget.style.background = `${t.color}10`; e.currentTarget.style.borderColor = `${t.color}40`; }}
@@ -176,6 +193,7 @@ const ReportPanel = () => {
           drag
           dragMomentum={false}
           whileDrag={{ cursor: 'grabbing' }}
+          onPointerDown={(e) => e.stopPropagation()}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', cursor: 'grab' }} className="drag-handle">
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -190,7 +208,7 @@ const ReportPanel = () => {
           </div>
 
           {/* Info */}
-          <div onPointerDown={(e) => e.stopPropagation()} style={{
+          <div style={{
             background: 'rgba(245, 158, 11, 0.08)', borderRadius: '10px', padding: '12px 14px',
             marginBottom: '14px', fontSize: '13px', color: '#92400E', display: 'flex', flexDirection: 'column', gap: '4px'
           }}>
@@ -205,9 +223,10 @@ const ReportPanel = () => {
           </div>
 
           {/* Mô tả */}
-          <div style={{ marginBottom: '14px' }} onPointerDown={(e) => e.stopPropagation()}>
+          <div style={{ marginBottom: '14px' }}>
             <label style={{ fontSize: '13px', fontWeight: 600, marginBottom: '6px', display: 'block' }}>Mô tả (tùy chọn):</label>
             <textarea value={description} onChange={(e) => setDescription(e.target.value)}
+              onPointerDown={(e) => e.stopPropagation()}
               placeholder="VD: Thang máy tầng 1 đang bảo trì từ sáng..."
               maxLength={500} rows={2}
               style={{
@@ -218,16 +237,33 @@ const ReportPanel = () => {
             />
           </div>
 
-          {/* Submit */}
-          <div onPointerDown={(e) => e.stopPropagation()}>
-            {submitSuccess ? (
+          {/* Submit + Result */}
+          <div>
+            {submitResult === 'success' && (
               <div style={{
                 textAlign: 'center', padding: '12px', borderRadius: '10px',
                 background: 'rgba(16, 185, 129, 0.1)', color: '#065F46', fontWeight: 600, fontSize: '14px'
               }}>
                 ✅ Đã gửi báo cáo thành công!
               </div>
-            ) : (
+            )}
+            {submitResult === 'obstacle_created' && (
+              <div style={{
+                textAlign: 'center', padding: '12px', borderRadius: '10px',
+                background: 'rgba(245, 158, 11, 0.1)', color: '#92400E', fontWeight: 600, fontSize: '14px'
+              }}>
+                🚨 Đủ báo cáo! Vật cản đã được tạo trên bản đồ!
+              </div>
+            )}
+            {submitResult === 'error' && (
+              <div style={{
+                textAlign: 'center', padding: '12px', borderRadius: '10px',
+                background: 'rgba(220, 38, 38, 0.1)', color: '#991B1B', fontWeight: 600, fontSize: '14px'
+              }}>
+                ❌ Gửi báo cáo thất bại. Vui lòng thử lại!
+              </div>
+            )}
+            {!submitResult && (
               <button onClick={handleSubmit} disabled={isSubmitting}
                 style={{
                   width: '100%', padding: '12px', borderRadius: '10px', border: 'none',

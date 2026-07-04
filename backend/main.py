@@ -4,6 +4,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from config.settings import get_settings
 from routers import map_router, chat_router, search_router, report_router, obstacle_router
 from middlewares.auth_middleware import SupabaseAuthMiddleware
+from database.connection import engine
+from database.models import Base
+
 settings = get_settings()
 
 app = FastAPI(
@@ -29,6 +32,14 @@ app.include_router(chat_router.router)
 app.include_router(search_router.router)
 app.include_router(report_router.router)
 app.include_router(obstacle_router.router)
+
+
+@app.on_event("startup")
+async def startup():
+    """Tự động tạo bảng reports + obstacles nếu chưa có."""
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
 
 @app.get("/")
 async def root():

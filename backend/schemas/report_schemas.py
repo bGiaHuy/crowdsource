@@ -40,6 +40,7 @@ class ReportResponse(BaseModel):
     reporter_id: Optional[str]
     status: str
     created_at: datetime
+    obstacle_created: bool = False  # True khi report này gây tạo obstacle tự động
 
     class Config:
         from_attributes = True
