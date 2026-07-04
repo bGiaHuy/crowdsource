@@ -222,14 +222,14 @@ const DraftImageMap = () => {
       e.preventDefault();
     }
     
-    setIsDragging(true);
-    hasDragged.current = false;
     clickStartPos.current = { x: e.clientX, y: e.clientY };
+    hasDragged.current = false;
     
     // Rotate if Shift key is held down, right mouse button is used, or interaction mode is set to 'rotate'
     const shouldRotate = e.shiftKey || e.button === 2 || interactionMode === 'rotate';
     
     if (shouldRotate) {
+      setIsDragging(true);
       setIsRotating(true);
       dragStart.current = {
         startX: e.clientX,
@@ -237,12 +237,16 @@ const DraftImageMap = () => {
         startRotation: rotation,
         startTilt: tilt
       };
-    } else {
+    } else if (interactionMode === 'pan') {
+      setIsDragging(true);
       setIsRotating(false);
       dragStart.current = {
         startX: e.clientX - position.x,
         startY: e.clientY - position.y
       };
+    } else {
+      setIsDragging(false);
+      setIsRotating(false);
     }
   };
 
@@ -348,7 +352,7 @@ const DraftImageMap = () => {
 
         {/* Pan Mode Button */}
         <button 
-          onClick={() => setInteractionMode('pan')} 
+          onClick={() => setInteractionMode(prev => prev === 'pan' ? 'none' : 'pan')} 
           title="Chế độ di chuyển (Kéo thả để di chuyển bản đồ)" 
           style={{
             width: '38px', height: '38px',
@@ -367,7 +371,7 @@ const DraftImageMap = () => {
 
         {/* Rotate Mode Button */}
         <button 
-          onClick={() => setInteractionMode('rotate')} 
+          onClick={() => setInteractionMode(prev => prev === 'rotate' ? 'none' : 'rotate')} 
           title="Chế độ xoay (Kéo thả để xoay bản đồ / thay đổi góc nghiêng)" 
           style={{
             width: '38px', height: '38px',
