@@ -37,8 +37,12 @@ app.include_router(obstacle_router.router)
 @app.on_event("startup")
 async def startup():
     """Tự động tạo bảng reports + obstacles nếu chưa có."""
+    from database.models import Report, Obstacle
     async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+        await conn.run_sync(
+            Base.metadata.create_all,
+            tables=[Report.__table__, Obstacle.__table__]
+        )
 
 
 @app.get("/")
